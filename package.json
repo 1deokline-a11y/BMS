@@ -1,0 +1,19 @@
+{
+  "name": "bom-management-system",
+  "version": "1.0.0",
+  "description": "BOM 관리 시스템 - 광통신장비 제조용",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "xlsx": "^0.18.5"
+  }
+}

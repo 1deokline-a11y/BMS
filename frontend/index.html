@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOM 관리 시스템</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root {
+  --sidebar-width: 220px;
+  --header-height: 56px;
+  --color-added: #c6efce;
+  --color-removed: #ffc7ce;
+  --color-qty: #ffeb9c;
+  --color-spec: #fce4d6;
+}
+body { background: #f4f6f9; font-size: 0.875rem; }
+#sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0;
+  width: var(--sidebar-width); background: #1e2a3a; z-index: 100;
+  display: flex; flex-direction: column;
+}
+#sidebar .brand {
+  padding: 1rem; color: #fff; font-weight: 700; font-size: 1rem;
+  border-bottom: 1px solid #2d3f55; display: flex; align-items: center; gap: 0.5rem;
+}
+#sidebar nav a {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.65rem 1.25rem; color: #a0aec0; text-decoration: none;
+  font-size: 0.82rem; border-left: 3px solid transparent; transition: all 0.15s;
+}
+#sidebar nav a:hover { background: #2d3f55; color: #fff; }
+#sidebar nav a.active { background: #2d3f55; color: #63b3ed; border-left-color: #63b3ed; }
+#sidebar nav .nav-section {
+  padding: 0.5rem 1.25rem 0.25rem; color: #4a5568;
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.5rem;
+}
+#main-content {
+  margin-left: var(--sidebar-width); min-height: 100vh; padding: 1.5rem;
+}
+.page { display: none; }
+.page.active { display: block; }
+.page-title { font-size: 1.25rem; font-weight: 700; color: #2d3748; margin-bottom: 1.25rem; }
+.card { border: none; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.card-header { background: #fff; border-bottom: 1px solid #e2e8f0; font-weight: 600; }
+.stat-card { border-radius: 10px; padding: 1.25rem; color: #fff; }
+.stat-card .stat-value { font-size: 2rem; font-weight: 700; }
+.stat-card .stat-label { font-size: 0.78rem; opacity: 0.85; }
+.table th { background: #f7fafc; font-weight: 600; font-size: 0.8rem; }
+.table td { vertical-align: middle; }
+.bom-table th, .bom-table td { padding: 0.4rem 0.6rem; }
+.badge-group { background: #ebf8ff; color: #2b6cb0; }
+.diff-added { background: var(--color-added); }
+.diff-removed { background: var(--color-removed); }
+.diff-qty { background: var(--color-qty); }
+.diff-spec { background: var(--color-spec); }
+.tree-item { cursor: pointer; padding: 0.3rem 0.5rem; border-radius: 4px; }
+.tree-item:hover { background: #edf2f7; }
+.tree-item.selected { background: #bee3f8; font-weight: 600; }
+.tree-group { font-weight: 700; color: #2b6cb0; padding: 0.4rem 0.5rem;
+              border-radius: 4px; cursor: pointer; }
+.tree-group:hover { background: #ebf8ff; }
+.legend-dot { display: inline-block; width: 14px; height: 14px;
+              border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+.editable-cell { cursor: pointer; }
+.editable-cell:hover { background: #fffde7; }
+.editable-cell input { border: none; background: transparent; width: 100%; padding: 0; }
+.editable-cell input:focus { outline: 1px solid #63b3ed; background: #fff; }
+.loading-spinner { display: none; }
+.loading-spinner.show { display: inline-block; }
+#toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; }
+.toast { min-width: 280px; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <div class="brand"><i class="bi bi-diagram-3-fill"></i> BOM 관리 시스템</div>
+  <nav>
+    <div class="nav-section">메인</div>
+    <a href="#" data-page="dashboard"><i class="bi bi-speedometer2"></i> 대시보드</a>
+    <div class="nav-section">BOM 관리</div>
+    <a href="#" data-page="products"><i class="bi bi-folder2-open"></i> 제품 탐색</a>
+    <a href="#" data-page="compare"><i class="bi bi-subtract"></i> BOM 비교</a>
+    <a href="#" data-page="bulk-edit"><i class="bi bi-pencil-square"></i> 일괄 수정</a>
+    <a href="#" data-page="new-bom"><i class="bi bi-plus-circle"></i> 신규 BOM 생성</a>
+    <div class="nav-section">설정</div>
+    <a href="#" data-page="common-parts"><i class="bi bi-gear"></i> 공용 부품 관리</a>
+    <a href="#" data-page="history"><i class="bi bi-clock-history"></i> 변경 이력</a>
+    <a href="#" data-page="notification"><i class="bi bi-envelope"></i> 메일 발송</a>
+    <div class="nav-section">가져오기</div>
+    <a href="#" data-page="import"><i class="bi bi-upload"></i> 엑셀 임포트</a>
+  </nav>
+</div>
+
+<!-- Main Content -->
+<div id="main-content">
+
+<!-- ====== DASHBOARD ====== -->
+<div class="page" id="page-dashboard">
+  <div class="page-title"><i class="bi bi-speedometer2 me-2"></i>대시보드</div>
+  <div class="row g-3 mb-4" id="stat-cards">
+    <div class="col-md-3">
+      <div class="stat-card" style="background:linear-gradient(135deg,#4299e1,#3182ce)">
+        <div class="stat-value" id="stat-products">-</div>
+        <div class="stat-label">전체 제품 수</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card" style="background:linear-gradient(135deg,#48bb78,#38a169)">
+        <div class="stat-value" id="stat-groups">-</div>
+        <div class="stat-label">제품군 수</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card" style="background:linear-gradient(135deg,#ed8936,#dd6b20)">
+        <div class="stat-value" id="stat-parts">-</div>
+        <div class="stat-label">등록 부품 수</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card" style="background:linear-gradient(135deg,#9f7aea,#805ad5)">
+        <div class="stat-value" id="stat-changes">-</div>
+        <div class="stat-label">이번 달 변경</div>
+      </div>
+    </div>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-clock-history me-1"></i>최근 변경 이력</span>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>일시</th><th>유형</th><th>작업자</th><th>영향 품번</th><th>사유</th></tr></thead>
+            <tbody id="recent-history"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-bar-chart me-1"></i>제품군 요약</div>
+        <div class="card-body p-0">
+          <table class="table mb-0">
+            <thead><tr><th>제품군</th><th class="text-center">제품 수</th></tr></thead>
+            <tbody id="group-summary"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== PRODUCTS ====== -->
+<div class="page" id="page-products">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="page-title mb-0"><i class="bi bi-folder2-open me-2"></i>제품 탐색</div>
+    <button class="btn btn-primary btn-sm" onclick="navigateTo('new-bom')">
+      <i class="bi bi-plus-circle me-1"></i>신규 BOM 생성
+    </button>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-3">
+      <div class="card h-100">
+        <div class="card-header">제품군 트리</div>
+        <div class="card-body p-2" id="product-tree" style="overflow-y:auto;max-height:70vh;"></div>
+      </div>
+    </div>
+    <div class="col-md-9">
+      <div class="card mb-3">
+        <div class="card-body py-2">
+          <div class="row g-2 align-items-center">
+            <div class="col-md-3">
+              <input type="text" class="form-control form-control-sm" id="filter-search" placeholder="품번/품명/고객사 검색">
+            </div>
+            <div class="col-md-2">
+              <input type="text" class="form-control form-control-sm" id="filter-customer" placeholder="고객사">
+            </div>
+            <div class="col-md-2">
+              <input type="text" class="form-control form-control-sm" id="filter-country" placeholder="국가향">
+            </div>
+            <div class="col-md-2">
+              <button class="btn btn-outline-primary btn-sm w-100" onclick="loadProducts()">
+                <i class="bi bi-search me-1"></i>검색
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>품번</th><th>제품명</th><th>제품군</th><th>고객사</th><th>국가향</th><th>사양</th><th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="product-list"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== BOM DETAIL ====== -->
+<div class="page" id="page-bom-detail">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <button class="btn btn-outline-secondary btn-sm me-2" onclick="navigateTo('products')">
+        <i class="bi bi-arrow-left"></i> 목록
+      </button>
+      <span class="page-title mb-0" id="bom-detail-title">BOM 상세</span>
+    </div>
+    <div>
+      <button class="btn btn-outline-success btn-sm me-1" onclick="exportBOM()">
+        <i class="bi bi-download me-1"></i>엑셀 다운로드
+      </button>
+      <button class="btn btn-success btn-sm" id="btn-save-bom" onclick="saveBOM()">
+        <i class="bi bi-save me-1"></i>저장
+      </button>
+    </div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">제품 정보</div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-md-3"><label class="form-label fw-bold">품번</label><div id="detail-pn" class="form-control-plaintext"></div></div>
+            <div class="col-md-4"><label class="form-label fw-bold">제품명</label><input type="text" class="form-control form-control-sm" id="detail-name"></div>
+            <div class="col-md-2"><label class="form-label fw-bold">제품군</label><div id="detail-group" class="form-control-plaintext"></div></div>
+            <div class="col-md-3"><label class="form-label fw-bold">고객사</label><input type="text" class="form-control form-control-sm" id="detail-customer"></div>
+            <div class="col-md-3"><label class="form-label fw-bold">국가향</label><input type="text" class="form-control form-control-sm" id="detail-country"></div>
+            <div class="col-md-3"><label class="form-label fw-bold">사양</label><input type="text" class="form-control form-control-sm" id="detail-spec"></div>
+            <div class="col-md-6"><label class="form-label fw-bold">비고</label><input type="text" class="form-control form-control-sm" id="detail-notes"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>BOM 항목</span>
+      <button class="btn btn-outline-primary btn-sm" onclick="addBOMRow()">
+        <i class="bi bi-plus-circle me-1"></i>행 추가
+      </button>
+    </div>
+    <div class="card-body p-0">
+      <table class="table bom-table mb-0" id="bom-detail-table">
+        <thead>
+          <tr>
+            <th width="40">순번</th>
+            <th width="160">부품번호</th>
+            <th width="200">부품명</th>
+            <th width="180">규격</th>
+            <th width="60">단위</th>
+            <th width="70">수량</th>
+            <th width="150">비고</th>
+            <th width="50">삭제</th>
+          </tr>
+        </thead>
+        <tbody id="bom-detail-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ====== BOM COMPARE ====== -->
+<div class="page" id="page-compare">
+  <div class="page-title"><i class="bi bi-subtract me-2"></i>BOM 비교</div>
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label fw-bold">비교 BOM 1</label>
+          <select class="form-select form-select-sm" id="compare-select1">
+            <option value="">-- 선택 --</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-bold">비교 BOM 2</label>
+          <select class="form-select form-select-sm" id="compare-select2">
+            <option value="">-- 선택 --</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <div class="form-check mb-1">
+            <input class="form-check-input" type="checkbox" id="diff-only-toggle">
+            <label class="form-check-label">차이만 보기</label>
+          </div>
+          <button class="btn btn-primary btn-sm w-100" onclick="runCompare()">
+            <i class="bi bi-search me-1"></i>비교 실행
+          </button>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-outline-success btn-sm w-100" id="btn-export-compare" onclick="exportCompare()" disabled>
+            <i class="bi bi-download me-1"></i>엑셀 다운로드
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mb-2">
+    <span class="me-3"><span class="legend-dot" style="background:var(--color-added)"></span>추가됨</span>
+    <span class="me-3"><span class="legend-dot" style="background:var(--color-removed)"></span>삭제됨</span>
+    <span class="me-3"><span class="legend-dot" style="background:var(--color-qty)"></span>수량 차이</span>
+    <span class="me-3"><span class="legend-dot" style="background:var(--color-spec)"></span>규격 차이</span>
+  </div>
+  <div id="compare-summary" class="mb-3"></div>
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0" id="compare-table">
+        <thead>
+          <tr id="compare-header">
+            <th>구분</th>
+            <th colspan="4" class="text-center" id="compare-h1">BOM 1</th>
+            <th colspan="4" class="text-center" id="compare-h2">BOM 2</th>
+          </tr>
+          <tr>
+            <th width="80">상태</th>
+            <th>부품번호</th><th>부품명</th><th>규격</th><th>수량</th>
+            <th>부품번호</th><th>부품명</th><th>규격</th><th>수량</th>
+          </tr>
+        </thead>
+        <tbody id="compare-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ====== BULK EDIT ====== -->
+<div class="page" id="page-bulk-edit">
+  <div class="page-title"><i class="bi bi-pencil-square me-2"></i>일괄 수정 (F3)</div>
+
+  <!-- Step 1: Search -->
+  <div class="card mb-3">
+    <div class="card-header">1단계: 부품 검색</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-4">
+          <input type="text" class="form-control form-control-sm" id="bulk-search-pn" placeholder="부품번호 (부분 검색)">
+        </div>
+        <div class="col-md-4">
+          <input type="text" class="form-control form-control-sm" id="bulk-search-name" placeholder="부품명 (부분 검색)">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary btn-sm w-100" onclick="searchParts()">
+            <i class="bi bi-search me-1"></i>검색
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bulk-search-results"></div>
+
+  <!-- Step 2: Select products & edit action -->
+  <div id="bulk-edit-form" style="display:none">
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between">
+        <span>2단계: 적용 대상 선택</span>
+        <span>
+          <button class="btn btn-outline-secondary btn-xs btn-sm" onclick="selectAllBulk(true)">전체 선택</button>
+          <button class="btn btn-outline-secondary btn-xs btn-sm ms-1" onclick="selectAllBulk(false)">전체 해제</button>
+        </span>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead><tr><th width="40"><input type="checkbox" id="chk-all-bulk" onchange="selectAllBulk(this.checked)"></th><th>품번</th><th>제품명</th><th>제품군</th><th>현재 수량</th></tr></thead>
+          <tbody id="bulk-usage-list"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header">3단계: 변경 작업 설정</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label">변경 유형</label>
+            <select class="form-select form-select-sm" id="bulk-action" onchange="updateBulkForm()">
+              <option value="replace">부품 교체</option>
+              <option value="update_qty">수량 변경</option>
+              <option value="delete">부품 삭제</option>
+              <option value="add">부품 추가</option>
+            </select>
+          </div>
+          <div id="bulk-replace-fields" class="col-md-9">
+            <div class="row g-2">
+              <div class="col-md-3"><label class="form-label">신규 부품번호</label><input type="text" class="form-control form-control-sm" id="bulk-new-pn"></div>
+              <div class="col-md-3"><label class="form-label">신규 부품명</label><input type="text" class="form-control form-control-sm" id="bulk-new-name"></div>
+              <div class="col-md-3"><label class="form-label">신규 규격</label><input type="text" class="form-control form-control-sm" id="bulk-new-spec"></div>
+              <div class="col-md-3"><label class="form-label">신규 수량</label><input type="number" class="form-control form-control-sm" id="bulk-new-qty" step="0.1"></div>
+            </div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold text-danger">변경 사유 (필수)</label>
+            <input type="text" class="form-control form-control-sm" id="bulk-reason" placeholder="변경 사유를 입력하세요">
+          </div>
+        </div>
+        <div class="mt-3">
+          <button class="btn btn-warning btn-sm me-2" onclick="previewBulkEdit()">
+            <i class="bi bi-eye me-1"></i>미리보기
+          </button>
+          <button class="btn btn-danger btn-sm" id="btn-apply-bulk" onclick="applyBulkEdit()" disabled>
+            <i class="bi bi-check-circle me-1"></i>일괄 적용
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="bulk-preview-area"></div>
+  </div>
+</div>
+
+<!-- ====== NEW BOM ====== -->
+<div class="page" id="page-new-bom">
+  <div class="page-title"><i class="bi bi-plus-circle me-2"></i>신규 BOM 생성 (F4)</div>
+  <div class="card mb-3">
+    <div class="card-header">제품 기본 정보</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label fw-bold">제품군</label>
+          <select class="form-select form-select-sm" id="new-product-group" onchange="loadCommonPartsForNew()">
+            <option value="">-- 선택 --</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold">품번</label>
+          <input type="text" class="form-control form-control-sm" id="new-part-number" placeholder="A11-D1-XXXX">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-bold">제품명</label>
+          <input type="text" class="form-control form-control-sm" id="new-name" placeholder="예: 27형_96C_OFC-G-R-27">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">고객사</label>
+          <input type="text" class="form-control form-control-sm" id="new-customer">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">국가향</label>
+          <input type="text" class="form-control form-control-sm" id="new-country">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">사양</label>
+          <input type="text" class="form-control form-control-sm" id="new-spec">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">비고</label>
+          <input type="text" class="form-control form-control-sm" id="new-notes">
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>BOM 항목 <span class="badge bg-info ms-1" id="new-bom-count">0</span></span>
+      <button class="btn btn-outline-primary btn-sm" onclick="addNewBOMRow()">
+        <i class="bi bi-plus-circle me-1"></i>행 추가
+      </button>
+    </div>
+    <div class="card-body p-0">
+      <table class="table bom-table mb-0">
+        <thead>
+          <tr>
+            <th width="40">순번</th><th width="90">구분</th>
+            <th width="160">부품번호</th><th width="200">부품명</th>
+            <th width="180">규격</th><th width="60">단위</th>
+            <th width="70">수량</th><th width="50">삭제</th>
+          </tr>
+        </thead>
+        <tbody id="new-bom-body"></tbody>
+      </table>
+    </div>
+    <div class="card-footer">
+      <button class="btn btn-success" onclick="saveNewBOM()">
+        <i class="bi bi-save me-1"></i>BOM 저장
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== COMMON PARTS ====== -->
+<div class="page" id="page-common-parts">
+  <div class="page-title"><i class="bi bi-gear me-2"></i>공용 부품 관리</div>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">제품군 선택</div>
+        <div class="card-body p-2" id="common-parts-group-list"></div>
+      </div>
+      <div class="card mt-3">
+        <div class="card-header">AI 공용 부품 추천</div>
+        <div class="card-body">
+          <p class="text-muted small">선택된 제품군의 BOM 데이터를 분석하여 공용 부품을 자동으로 추천합니다.</p>
+          <button class="btn btn-info btn-sm w-100" id="btn-ai-suggest" onclick="aiSuggestCommonParts()" disabled>
+            <i class="bi bi-robot me-1"></i>AI 분석 실행
+          </button>
+          <div id="ai-suggest-result" class="mt-2 small"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span id="common-parts-group-title">공용 부품 목록</span>
+          <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-add-common">
+            <i class="bi bi-plus-circle me-1"></i>공용 부품 추가
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <table class="table mb-0">
+            <thead><tr><th>부품번호</th><th>부품명</th><th>규격</th><th>단위</th><th>기본수량</th><th>삭제</th></tr></thead>
+            <tbody id="common-parts-list"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== HISTORY ====== -->
+<div class="page" id="page-history">
+  <div class="page-title"><i class="bi bi-clock-history me-2"></i>변경 이력</div>
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2">
+        <div class="col-md-3">
+          <select class="form-select form-select-sm" id="history-type-filter" onchange="loadHistory()">
+            <option value="">전체 유형</option>
+            <option value="replace">부품 교체</option>
+            <option value="update_qty">수량 변경</option>
+            <option value="delete">부품 삭제</option>
+            <option value="add">부품 추가</option>
+            <option value="rollback">롤백</option>
+            <option value="create">신규 생성</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-outline-primary btn-sm" onclick="loadHistory()">
+            <i class="bi bi-search me-1"></i>새로고침
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table mb-0">
+        <thead><tr><th>ID</th><th>일시</th><th>유형</th><th>작업자</th><th>영향 품번</th><th>사유</th><th>상태</th><th>작업</th></tr></thead>
+        <tbody id="history-list"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ====== NOTIFICATION ====== -->
+<div class="page" id="page-notification">
+  <div class="page-title"><i class="bi bi-envelope me-2"></i>메일 작성 / 발송 (F5)</div>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">변경 이력 선택</div>
+        <div class="card-body p-0" style="max-height:300px;overflow-y:auto;">
+          <table class="table table-sm mb-0">
+            <thead><tr><th>ID</th><th>일시</th><th>유형</th></tr></thead>
+            <tbody id="notif-history-list"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card mt-3">
+        <div class="card-header">수신 그룹</div>
+        <div class="card-body">
+          <div id="notif-recipient-groups"></div>
+          <div class="mt-2">
+            <label class="form-label small">추가 수신자 (쉼표 구분)</label>
+            <input type="text" class="form-control form-control-sm" id="notif-extra-emails" placeholder="email@example.com">
+          </div>
+        </div>
+      </div>
+      <div class="mt-2">
+        <button class="btn btn-info btn-sm w-100 mb-2" onclick="generateEmail()">
+          <i class="bi bi-robot me-1"></i>AI 메일 자동 생성
+        </button>
+        <button class="btn btn-success btn-sm w-100" onclick="sendEmail()">
+          <i class="bi bi-send me-1"></i>Outlook으로 발송
+        </button>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">메일 내용 (수정 가능)</div>
+        <div class="card-body">
+          <div class="mb-2">
+            <label class="form-label fw-bold">제목</label>
+            <input type="text" class="form-control form-control-sm" id="notif-subject" placeholder="제목">
+          </div>
+          <div>
+            <label class="form-label fw-bold">본문</label>
+            <textarea class="form-control" id="notif-body" rows="16" placeholder="AI 자동 생성 또는 직접 작성"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== IMPORT ====== -->
+<div class="page" id="page-import">
+  <div class="page-title"><i class="bi bi-upload me-2"></i>엑셀 임포트</div>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">파일 업로드</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label">엑셀 BOM 파일 선택 (.xlsx)</label>
+            <input type="file" class="form-control" id="import-files" multiple accept=".xlsx">
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="import-overwrite">
+            <label class="form-check-label">이미 존재하는 품번 덮어쓰기</label>
+          </div>
+          <button class="btn btn-primary" onclick="importFiles()">
+            <i class="bi bi-upload me-1"></i>임포트 실행
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">폴더 전체 임포트</div>
+        <div class="card-body">
+          <p class="text-muted small">서버 로컬 폴더의 모든 엑셀 파일을 한 번에 임포트합니다.</p>
+          <div class="mb-3">
+            <label class="form-label">폴더 경로</label>
+            <input type="text" class="form-control" id="import-folder-path"
+              placeholder="C:\Users\user\Desktop\claude AI-BOM Management System\A11-D1-0000">
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="folder-overwrite">
+            <label class="form-check-label">이미 존재하는 품번 덮어쓰기</label>
+          </div>
+          <button class="btn btn-warning" onclick="scanFolder()">
+            <i class="bi bi-folder2-open me-1"></i>폴더 스캔 및 임포트
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="import-results" class="mt-3"></div>
+</div>
+
+</div><!-- end main-content -->
+
+<!-- Modal: Add Common Part -->
+<div class="modal fade" id="modal-add-common" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">공용 부품 추가</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label">제품군</label>
+          <input type="text" class="form-control form-control-sm" id="cp-group" readonly>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">부품번호</label>
+          <input type="text" class="form-control form-control-sm" id="cp-pn">
+        </div>
+        <div class="mb-2">
+          <label class="form-label">부품명</label>
+          <input type="text" class="form-control form-control-sm" id="cp-name">
+        </div>
+        <div class="mb-2">
+          <label class="form-label">규격</label>
+          <input type="text" class="form-control form-control-sm" id="cp-spec">
+        </div>
+        <div class="mb-2">
+          <label class="form-label">단위</label>
+          <input type="text" class="form-control form-control-sm" id="cp-unit" value="EA">
+        </div>
+        <div class="mb-2">
+          <label class="form-label">기본 수량</label>
+          <input type="number" class="form-control form-control-sm" id="cp-qty" value="1" step="0.1">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">취소</button>
+        <button class="btn btn-primary btn-sm" onclick="addCommonPart()">추가</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: History Detail -->
+<div class="modal fade" id="modal-history-detail" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">변경 이력 상세</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="history-detail-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-warning btn-sm" id="btn-rollback" onclick="rollbackHistory()">
+          <i class="bi bi-arrow-counterclockwise me-1"></i>롤백
+        </button>
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">닫기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ===================== Router =====================
+const API = '';
+let currentPage = 'dashboard';
+let currentProductId = null;
+let currentHistoryId = null;
+let currentCompareId1 = null;
+let currentCompareId2 = null;
+let selectedBulkPart = null;
+let selectedCommonGroup = null;
+
+function navigateTo(page, params = {}) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
+  const pageEl = document.getElementById(`page-${page}`);
+  if (pageEl) pageEl.classList.add('active');
+  const navLink = document.querySelector(`[data-page="${page}"]`);
+  if (navLink) navLink.classList.add('active');
+  currentPage = page;
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'products') loadProducts();
+  if (page === 'compare') loadCompareSelects();
+  if (page === 'history') loadHistory();
+  if (page === 'notification') { loadNotifHistory(); loadRecipients(); }
+  if (page === 'common-parts') loadCommonPartsGroups();
+  if (page === 'new-bom') loadGroupsForNew();
+  if (page === 'import') {}
+  if (page === 'bom-detail' && params.id) { currentProductId = params.id; loadBOMDetail(params.id); }
+}
+
+document.querySelectorAll('#sidebar nav a[data-page]').forEach(a => {
+  a.addEventListener('click', e => { e.preventDefault(); navigateTo(a.dataset.page); });
+});
+
+// ===================== API helpers =====================
+async function api(method, path, body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || '서버 오류');
+  }
+  return res.json();
+}
+
+async function apiForm(path, formData) {
+  const res = await fetch(API + path, { method: 'POST', body: formData });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || '서버 오류');
+  }
+  return res.json();
+}
+
+// ===================== Toast =====================
+function toast(msg, type = 'success') {
+  const colors = { success: 'bg-success', danger: 'bg-danger', info: 'bg-info', warning: 'bg-warning' };
+  const id = 'toast-' + Date.now();
+  const el = document.createElement('div');
+  el.className = `toast align-items-center text-white ${colors[type] || 'bg-secondary'} border-0 show mb-2`;
+  el.id = id;
+  el.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div>
+    <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="document.getElementById('${id}').remove()"></button></div>`;
+  document.getElementById('toast-container').prepend(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ===================== Dashboard =====================
+async function loadDashboard() {
+  try {
+    const [products, groups, history] = await Promise.all([
+      api('GET', '/api/products'),
+      api('GET', '/api/products/groups'),
+      api('GET', '/api/history?limit=10'),
+    ]);
+    document.getElementById('stat-products').textContent = products.length;
+    document.getElementById('stat-groups').textContent = groups.length;
+
+    // Group summary
+    const groupCount = {};
+    products.forEach(p => { groupCount[p.product_group] = (groupCount[p.product_group] || 0) + 1; });
+    document.getElementById('group-summary').innerHTML = Object.entries(groupCount)
+      .sort((a, b) => b[1] - a[1])
+      .map(([g, c]) => `<tr><td><span class="badge badge-group">${g}</span></td><td class="text-center">${c}</td></tr>`).join('');
+
+    // Recent history
+    const now = new Date();
+    const monthChanges = history.items.filter(h => {
+      const d = new Date(h.timestamp);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+    document.getElementById('stat-changes').textContent = monthChanges;
+
+    const actionLabels = { replace: '부품 교체', update_qty: '수량 변경', delete: '삭제', add: '추가', rollback: '롤백', create: '생성' };
+    document.getElementById('recent-history').innerHTML = history.items.slice(0, 8).map(h => `
+      <tr>
+        <td>${new Date(h.timestamp).toLocaleDateString('ko-KR')} ${new Date(h.timestamp).toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'})}</td>
+        <td><span class="badge bg-secondary">${actionLabels[h.action_type] || h.action_type}</span></td>
+        <td>${h.operator}</td>
+        <td>${(h.affected_products || []).slice(0, 2).join(', ')}${(h.affected_products||[]).length > 2 ? '...' : ''}</td>
+        <td>${h.reason.substring(0, 30)}</td>
+      </tr>`).join('') || '<tr><td colspan="5" class="text-center text-muted">이력 없음</td></tr>';
+
+    // Count parts
+    const partsRes = await api('GET', '/api/bulk-edit/search?part_number=');
+    document.getElementById('stat-parts').textContent = partsRes.length || '-';
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// ===================== Products =====================
+let allProducts = [];
+
+async function loadProducts() {
+  try {
+    const search = document.getElementById('filter-search').value;
+    const customer = document.getElementById('filter-customer').value;
+    const country = document.getElementById('filter-country').value;
+    let url = '/api/products?';
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+    if (customer) url += `customer=${encodeURIComponent(customer)}&`;
+    if (country) url += `country_spec=${encodeURIComponent(country)}&`;
+    allProducts = await api('GET', url);
+    renderProductList(allProducts);
+    renderProductTree(allProducts);
+  } catch (e) {
+    toast('제품 목록 로드 실패: ' + e.message, 'danger');
+  }
+}
+
+function renderProductTree(products) {
+  const groups = {};
+  products.forEach(p => {
+    if (!groups[p.product_group]) groups[p.product_group] = [];
+    groups[p.product_group].push(p);
+  });
+  const treeEl = document.getElementById('product-tree');
+  treeEl.innerHTML = Object.entries(groups).map(([g, prods]) => `
+    <div class="tree-group mb-1" onclick="filterByGroup('${g}')">
+      <i class="bi bi-folder me-1"></i>${g} <span class="badge bg-secondary ms-1">${prods.length}</span>
+    </div>
+    <div class="ms-3 mb-2">
+      ${prods.map(p => `<div class="tree-item" onclick="filterByGroup('${g}','${p.id}')">
+        <span class="text-muted">${p.variant_code}</span> ${p.name.substring(0,20)}
+      </div>`).join('')}
+    </div>`).join('');
+}
+
+function filterByGroup(group, productId) {
+  document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('selected'));
+  const filtered = productId
+    ? allProducts.filter(p => p.id == productId)
+    : allProducts.filter(p => p.product_group === group);
+  renderProductList(filtered);
+  if (productId) {
+    event.currentTarget.classList.add('selected');
+  }
+}
+
+function renderProductList(products) {
+  document.getElementById('product-list').innerHTML = products.map(p => `
+    <tr>
+      <td><a href="#" onclick="openBOM(${p.id})" class="text-primary fw-bold">${p.part_number}</a></td>
+      <td>${p.name}</td>
+      <td><span class="badge badge-group">${p.product_group}</span></td>
+      <td>${p.customer}</td>
+      <td>${p.country_spec}</td>
+      <td>${p.spec}</td>
+      <td>
+        <button class="btn btn-outline-primary btn-sm btn-xs py-0" onclick="openBOM(${p.id})">
+          <i class="bi bi-eye"></i>
+        </button>
+        <button class="btn btn-outline-danger btn-sm btn-xs py-0 ms-1" onclick="deleteProduct(${p.id},'${p.part_number}')">
+          <i class="bi bi-trash"></i>
+        </button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="7" class="text-center text-muted">제품 없음</td></tr>';
+}
+
+async function deleteProduct(id, pn) {
+  if (!confirm(`${pn} 을 삭제하시겠습니까?`)) return;
+  try {
+    await fetch(`/api/products/${id}`, { method: 'DELETE' });
+    toast(`${pn} 삭제 완료`);
+    loadProducts();
+  } catch (e) { toast('삭제 실패: ' + e.message, 'danger'); }
+}
+
+function openBOM(id) {
+  navigateTo('bom-detail', { id });
+}
+
+// ===================== BOM Detail =====================
+let currentBOMItems = [];
+let currentProduct = null;
+
+async function loadBOMDetail(id) {
+  try {
+    const p = await api('GET', `/api/products/${id}`);
+    currentProduct = p;
+    currentBOMItems = JSON.parse(JSON.stringify(p.bom_items));
+    document.getElementById('bom-detail-title').textContent = p.part_number;
+    document.getElementById('detail-pn').textContent = p.part_number;
+    document.getElementById('detail-group').textContent = p.product_group;
+    document.getElementById('detail-name').value = p.name;
+    document.getElementById('detail-customer').value = p.customer;
+    document.getElementById('detail-country').value = p.country_spec;
+    document.getElementById('detail-spec').value = p.spec;
+    document.getElementById('detail-notes').value = p.notes;
+    renderBOMDetailTable();
+  } catch (e) {
+    toast('BOM 로드 실패: ' + e.message, 'danger');
+  }
+}
+
+function renderBOMDetailTable() {
+  const tbody = document.getElementById('bom-detail-body');
+  tbody.innerHTML = currentBOMItems.map((item, i) => {
+    const p = item.part || {};
+    return `<tr data-idx="${i}">
+      <td>${i+1}</td>
+      <td><input type="text" class="form-control form-control-sm" value="${p.part_number||''}" onchange="updateBOMItem(${i},'part_number',this.value)"></td>
+      <td><input type="text" class="form-control form-control-sm" value="${p.part_name||''}" onchange="updateBOMItem(${i},'part_name',this.value)"></td>
+      <td><input type="text" class="form-control form-control-sm" value="${p.spec||''}" onchange="updateBOMItem(${i},'spec',this.value)"></td>
+      <td><input type="text" class="form-control form-control-sm" value="${p.unit||'EA'}" onchange="updateBOMItem(${i},'unit',this.value)" style="width:55px"></td>
+      <td><input type="number" class="form-control form-control-sm" value="${item.quantity||1}" step="0.1" onchange="updateBOMItem(${i},'quantity',parseFloat(this.value))" style="width:65px"></td>
+      <td><input type="text" class="form-control form-control-sm" value="${item.notes||''}" onchange="updateBOMItem(${i},'notes',this.value)"></td>
+      <td><button class="btn btn-outline-danger btn-sm py-0" onclick="deleteBOMRow(${i})"><i class="bi bi-trash"></i></button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" class="text-center text-muted">BOM 항목 없음</td></tr>';
+}
+
+function updateBOMItem(idx, field, value) {
+  if (!currentBOMItems[idx].part) currentBOMItems[idx].part = {};
+  if (['part_number','part_name','spec','unit'].includes(field)) {
+    currentBOMItems[idx].part[field] = value;
+  } else {
+    currentBOMItems[idx][field] = value;
+  }
+}
+
+function deleteBOMRow(idx) {
+  currentBOMItems.splice(idx, 1);
+  renderBOMDetailTable();
+}
+
+function addBOMRow() {
+  currentBOMItems.push({ part: { part_number:'', part_name:'', spec:'', unit:'EA' }, quantity:1, notes:'', row_order: currentBOMItems.length });
+  renderBOMDetailTable();
+}
+
+async function saveBOM() {
+  try {
+    // Save product metadata
+    await api('PUT', `/api/products/${currentProductId}`, {
+      name: document.getElementById('detail-name').value,
+      customer: document.getElementById('detail-customer').value,
+      country_spec: document.getElementById('detail-country').value,
+      spec: document.getElementById('detail-spec').value,
+      notes: document.getElementById('detail-notes').value,
+    });
+    // Save BOM items
+    const items = currentBOMItems.map((item, i) => ({
+      part_number: item.part?.part_number || '',
+      part_name: item.part?.part_name || '',
+      spec: item.part?.spec || '',
+      unit: item.part?.unit || 'EA',
+      quantity: item.quantity || 1,
+      position: item.position || '',
+      notes: item.notes || '',
+      row_order: i,
+    })).filter(it => it.part_number || it.part_name);
+    await api('PUT', `/api/products/${currentProductId}/bom`, items);
+    toast('BOM 저장 완료!');
+  } catch (e) {
+    toast('저장 실패: ' + e.message, 'danger');
+  }
+}
+
+async function exportBOM() {
+  window.open(`/api/import/excel?product_id=${currentProductId}`, '_blank');
+}
+
+// ===================== Compare =====================
+async function loadCompareSelects() {
+  try {
+    const products = await api('GET', '/api/products');
+    const options = products.map(p => `<option value="${p.id}">${p.part_number} - ${p.name}</option>`).join('');
+    document.getElementById('compare-select1').innerHTML = '<option value="">-- 선택 --</option>' + options;
+    document.getElementById('compare-select2').innerHTML = '<option value="">-- 선택 --</option>' + options;
+  } catch (e) {}
+}
+
+async function runCompare() {
+  const id1 = document.getElementById('compare-select1').value;
+  const id2 = document.getElementById('compare-select2').value;
+  if (!id1 || !id2 || id1 === id2) { toast('두 개의 다른 BOM을 선택해주세요', 'warning'); return; }
+  currentCompareId1 = id1;
+  currentCompareId2 = id2;
+  try {
+    const diffOnly = document.getElementById('diff-only-toggle').checked;
+    const result = await api('GET', `/api/compare?id1=${id1}&id2=${id2}&diff_only=${diffOnly}`);
+    renderCompareResult(result);
+    document.getElementById('btn-export-compare').disabled = false;
+  } catch (e) {
+    toast('비교 실패: ' + e.message, 'danger');
+  }
+}
+
+function renderCompareResult(result) {
+  document.getElementById('compare-h1').textContent = result.product1.part_number;
+  document.getElementById('compare-h2').textContent = result.product2.part_number;
+  const s = result.summary;
+  document.getElementById('compare-summary').innerHTML = `
+    <div class="d-flex gap-2 flex-wrap">
+      <span class="badge bg-secondary">전체 ${result.diffs.length}개</span>
+      <span class="badge" style="background:var(--color-added);color:#155724">추가 ${s.added}</span>
+      <span class="badge" style="background:var(--color-removed);color:#721c24">삭제 ${s.removed}</span>
+      <span class="badge" style="background:var(--color-qty);color:#856404">수량차이 ${s.qty_diff}</span>
+      <span class="badge" style="background:var(--color-spec);color:#6c3425">규격차이 ${s.spec_diff}</span>
+      <span class="badge bg-light text-dark">동일 ${s.same}</span>
+    </div>`;
+  const statusClass = { added:'diff-added', removed:'diff-removed', qty_diff:'diff-qty', spec_diff:'diff-spec', same:'' };
+  const statusLabel = { added:'추가', removed:'삭제', qty_diff:'수량↕', spec_diff:'규격↕', same:'동일' };
+  document.getElementById('compare-body').innerHTML = result.diffs.map(d => {
+    const cls = statusClass[d.status] || '';
+    const i1 = d.item1 || {};
+    const i2 = d.item2 || {};
+    return `<tr class="${cls}">
+      <td><small>${statusLabel[d.status]||d.status}</small></td>
+      <td>${i1.part_number||''}</td><td>${i1.part_name||''}</td>
+      <td>${i1.spec||''}</td><td>${i1.quantity||''}</td>
+      <td>${i2.part_number||''}</td><td>${i2.part_name||''}</td>
+      <td>${i2.spec||''}</td><td>${i2.quantity||''}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="9" class="text-center text-muted">데이터 없음</td></tr>';
+}
+
+function exportCompare() {
+  if (!currentCompareId1 || !currentCompareId2) return;
+  window.location.href = `/api/compare/export?id1=${currentCompareId1}&id2=${currentCompareId2}`;
+}
+
+// ===================== Bulk Edit =====================
+async function searchParts() {
+  const pn = document.getElementById('bulk-search-pn').value;
+  const name = document.getElementById('bulk-search-name').value;
+  if (!pn && !name) { toast('검색어를 입력해주세요', 'warning'); return; }
+  try {
+    const results = await api('GET', `/api/bulk-edit/search?part_number=${encodeURIComponent(pn)}&part_name=${encodeURIComponent(name)}`);
+    renderBulkSearchResults(results);
+  } catch (e) {
+    toast('검색 실패: ' + e.message, 'danger');
+  }
+}
+
+function renderBulkSearchResults(results) {
+  if (!results.length) {
+    document.getElementById('bulk-search-results').innerHTML = '<div class="alert alert-info">검색 결과 없음</div>';
+    document.getElementById('bulk-edit-form').style.display = 'none';
+    return;
+  }
+  let html = '<div class="card mb-3"><div class="card-header">검색 결과</div><div class="card-body p-0"><table class="table table-sm mb-0"><thead><tr><th>부품번호</th><th>부품명</th><th>규격</th><th>사용 제품 수</th><th>선택</th></tr></thead><tbody>';
+  html += results.map(r => `<tr>
+    <td>${r.part_number}</td><td>${r.part_name}</td><td>${r.spec||''}</td>
+    <td>${r.usage_count}개</td>
+    <td><button class="btn btn-sm btn-outline-primary py-0" onclick="selectPartForBulk(${JSON.stringify(r).replace(/"/g,'&quot;')})">선택</button></td>
+  </tr>`).join('');
+  html += '</tbody></table></div></div>';
+  document.getElementById('bulk-search-results').innerHTML = html;
+}
+
+function selectPartForBulk(part) {
+  selectedBulkPart = part;
+  document.getElementById('bulk-edit-form').style.display = 'block';
+  document.getElementById('bulk-new-pn').value = part.part_number;
+  document.getElementById('bulk-new-name').value = part.part_name;
+  document.getElementById('bulk-new-spec').value = part.spec || '';
+  document.getElementById('bulk-usage-list').innerHTML = part.usage.map(u => `
+    <tr>
+      <td><input type="checkbox" class="bulk-chk" value="${u.product_id}" checked></td>
+      <td>${u.part_number}</td><td>${u.product_name}</td>
+      <td><span class="badge badge-group">${u.product_group}</span></td>
+      <td>${u.quantity}</td>
+    </tr>`).join('');
+}
+
+function selectAllBulk(checked) {
+  document.querySelectorAll('.bulk-chk').forEach(c => c.checked = checked);
+  document.getElementById('chk-all-bulk').checked = checked;
+}
+
+function updateBulkForm() {
+  const action = document.getElementById('bulk-action').value;
+  document.getElementById('bulk-replace-fields').style.display = action === 'delete' ? 'none' : 'block';
+}
+
+async function previewBulkEdit() {
+  if (!selectedBulkPart) { toast('부품을 선택해주세요', 'warning'); return; }
+  const productIds = [...document.querySelectorAll('.bulk-chk:checked')].map(c => parseInt(c.value));
+  if (!productIds.length) { toast('적용 대상 제품을 선택해주세요', 'warning'); return; }
+  const req = buildBulkEditRequest(productIds);
+  try {
+    const preview = await api('POST', '/api/bulk-edit/preview', req);
+    renderBulkPreview(preview);
+    document.getElementById('btn-apply-bulk').disabled = false;
+  } catch (e) {
+    toast('미리보기 실패: ' + e.message, 'danger');
+  }
+}
+
+function buildBulkEditRequest(productIds) {
+  const action = document.getElementById('bulk-action').value;
+  return {
+    action,
+    target_part_number: selectedBulkPart.part_number,
+    product_ids: productIds,
+    reason: document.getElementById('bulk-reason').value,
+    new_part_number: document.getElementById('bulk-new-pn').value || null,
+    new_part_name: document.getElementById('bulk-new-name').value || null,
+    new_spec: document.getElementById('bulk-new-spec').value || null,
+    new_unit: 'EA',
+    new_quantity: parseFloat(document.getElementById('bulk-new-qty').value) || null,
+  };
+}
+
+function renderBulkPreview(preview) {
+  const rows = preview.previews.map(p => {
+    const affectedHtml = p.affected_items.map(ai => `
+      <div class="d-flex gap-2 small">
+        <div class="text-danger" style="width:45%">Before: ${ai.before ? JSON.stringify(ai.before) : '-'}</div>
+        <div class="text-success" style="width:45%">After: ${ai.after ? JSON.stringify(ai.after) : '(삭제)'}</div>
+      </div>`).join('');
+    return `<tr><td>${p.part_number}</td><td>${p.product_name}</td><td>${affectedHtml||'변경 없음'}</td></tr>`;
+  }).join('');
+  document.getElementById('bulk-preview-area').innerHTML = `
+    <div class="card"><div class="card-header text-warning fw-bold"><i class="bi bi-eye me-1"></i>변경 미리보기 (${preview.total_products}개 제품)</div>
+    <div class="card-body p-0"><table class="table table-sm mb-0">
+      <thead><tr><th>품번</th><th>제품명</th><th>변경 내용</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></div>`;
+}
+
+async function applyBulkEdit() {
+  const productIds = [...document.querySelectorAll('.bulk-chk:checked')].map(c => parseInt(c.value));
+  const reason = document.getElementById('bulk-reason').value;
+  if (!reason.trim()) { toast('변경 사유를 입력해주세요', 'danger'); return; }
+  if (!confirm(`${productIds.length}개 제품에 일괄 적용하시겠습니까? 이 작업은 되돌릴 수 있지만 신중히 확인해주세요.`)) return;
+  const req = buildBulkEditRequest(productIds);
+  try {
+    const result = await api('POST', '/api/bulk-edit/apply', req);
+    toast(`✅ ${result.message}`, 'success');
+    document.getElementById('btn-apply-bulk').disabled = true;
+    document.getElementById('bulk-preview-area').innerHTML = '';
+  } catch (e) {
+    toast('적용 실패: ' + e.message, 'danger');
+  }
+}
+
+// ===================== New BOM =====================
+let newBOMItems = [];
+
+async function loadGroupsForNew() {
+  try {
+    const groups = await api('GET', '/api/products/groups');
+    const sel = document.getElementById('new-product-group');
+    sel.innerHTML = '<option value="">-- 선택 --</option>' + groups.map(g => `<option value="${g}">${g}</option>`).join('');
+  } catch (e) {}
+}
+
+async function loadCommonPartsForNew() {
+  const group = document.getElementById('new-product-group').value;
+  if (!group) return;
+  try {
+    const parts = await api('GET', `/api/common-parts?product_group=${group}`);
+    newBOMItems = parts.map((t, i) => ({
+      type: 'common',
+      part_number: t.part.part_number,
+      part_name: t.part.part_name,
+      spec: t.part.spec,
+      unit: t.part.unit,
+      quantity: t.default_quantity,
+      notes: '',
+      row_order: i,
+    }));
+    renderNewBOMTable();
+    toast(`공용 부품 ${parts.length}개 자동 로드됨`, 'info');
+  } catch (e) {}
+}
+
+function renderNewBOMTable() {
+  document.getElementById('new-bom-count').textContent = newBOMItems.length;
+  document.getElementById('new-bom-body').innerHTML = newBOMItems.map((item, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td><span class="badge ${item.type==='common'?'bg-info':'bg-light text-dark'}">${item.type==='common'?'공용':'가변'}</span></td>
+      <td><input type="text" class="form-control form-control-sm" value="${item.part_number||''}" onchange="newBOMItems[${i}].part_number=this.value"></td>
+      <td><input type="text" class="form-control form-control-sm" value="${item.part_name||''}" onchange="newBOMItems[${i}].part_name=this.value"></td>
+      <td><input type="text" class="form-control form-control-sm" value="${item.spec||''}" onchange="newBOMItems[${i}].spec=this.value"></td>
+      <td><input type="text" class="form-control form-control-sm" value="${item.unit||'EA'}" onchange="newBOMItems[${i}].unit=this.value" style="width:55px"></td>
+      <td><input type="number" class="form-control form-control-sm" value="${item.quantity||1}" step="0.1" onchange="newBOMItems[${i}].quantity=parseFloat(this.value)" style="width:65px"></td>
+      <td><button class="btn btn-outline-danger btn-sm py-0" onclick="newBOMItems.splice(${i},1);renderNewBOMTable()"><i class="bi bi-trash"></i></button></td>
+    </tr>`).join('') || '<tr><td colspan="8" class="text-center text-muted">항목을 추가하세요</td></tr>';
+}
+
+function addNewBOMRow() {
+  newBOMItems.push({ type:'variable', part_number:'', part_name:'', spec:'', unit:'EA', quantity:1, notes:'', row_order: newBOMItems.length });
+  renderNewBOMTable();
+}
+
+async function saveNewBOM() {
+  const pn = document.getElementById('new-part-number').value.trim();
+  const group = document.getElementById('new-product-group').value;
+  const name = document.getElementById('new-name').value.trim();
+  if (!pn || !group || !name) { toast('품번, 제품군, 제품명은 필수입니다', 'warning'); return; }
+  const variantMatch = pn.match(/-(\d{4})$/);
+  const variant = variantMatch ? variantMatch[1] : pn.slice(-4);
+  const items = newBOMItems.filter(it => it.part_number || it.part_name).map((it, i) => ({
+    part_number: it.part_number, part_name: it.part_name,
+    spec: it.spec, unit: it.unit, quantity: it.quantity, notes: it.notes || '', position: '', row_order: i
+  }));
+  try {
+    await api('POST', '/api/products', {
+      part_number: pn, product_group: group, variant_code: variant, name,
+      customer: document.getElementById('new-customer').value,
+      country_spec: document.getElementById('new-country').value,
+      spec: document.getElementById('new-spec').value,
+      notes: document.getElementById('new-notes').value,
+      bom_items: items,
+    });
+    toast(`✅ ${pn} BOM 생성 완료!`, 'success');
+    newBOMItems = [];
+    document.getElementById('new-part-number').value = '';
+    document.getElementById('new-name').value = '';
+    renderNewBOMTable();
+    navigateTo('products');
+  } catch (e) {
+    toast('저장 실패: ' + e.message, 'danger');
+  }
+}
+
+// ===================== Common Parts =====================
+async function loadCommonPartsGroups() {
+  try {
+    const groups = await api('GET', '/api/products/groups');
+    document.getElementById('common-parts-group-list').innerHTML =
+      groups.map(g => `<div class="tree-item" onclick="loadCommonPartsList('${g}')">${g}</div>`).join('') ||
+      '<div class="text-muted small p-2">제품군 없음</div>';
+  } catch (e) {}
+}
+
+async function loadCommonPartsList(group) {
+  selectedCommonGroup = group;
+  document.querySelectorAll('#common-parts-group-list .tree-item').forEach(el => {
+    el.classList.toggle('selected', el.textContent.trim() === group);
+  });
+  document.getElementById('common-parts-group-title').textContent = `공용 부품 목록 - ${group}`;
+  document.getElementById('cp-group').value = group;
+  document.getElementById('btn-ai-suggest').disabled = false;
+  try {
+    const parts = await api('GET', `/api/common-parts?product_group=${group}`);
+    document.getElementById('common-parts-list').innerHTML = parts.map(t => `
+      <tr>
+        <td>${t.part.part_number}</td><td>${t.part.part_name}</td>
+        <td>${t.part.spec||''}</td><td>${t.part.unit||'EA'}</td><td>${t.default_quantity}</td>
+        <td><button class="btn btn-outline-danger btn-sm py-0" onclick="deleteCommonPart(${t.id})"><i class="bi bi-trash"></i></button></td>
+      </tr>`).join('') || '<tr><td colspan="6" class="text-center text-muted">등록된 공용 부품 없음</td></tr>';
+  } catch (e) {}
+}
+
+async function addCommonPart() {
+  const data = {
+    product_group: document.getElementById('cp-group').value,
+    part_number: document.getElementById('cp-pn').value,
+    part_name: document.getElementById('cp-name').value,
+    spec: document.getElementById('cp-spec').value,
+    unit: document.getElementById('cp-unit').value || 'EA',
+    default_quantity: parseFloat(document.getElementById('cp-qty').value) || 1,
+  };
+  if (!data.product_group || !data.part_number) { toast('제품군과 부품번호는 필수입니다', 'warning'); return; }
+  try {
+    await api('POST', '/api/common-parts', data);
+    toast('공용 부품 추가 완료');
+    bootstrap.Modal.getInstance(document.getElementById('modal-add-common')).hide();
+    loadCommonPartsList(data.product_group);
+  } catch (e) { toast('추가 실패: ' + e.message, 'danger'); }
+}
+
+async function deleteCommonPart(id) {
+  if (!confirm('삭제하시겠습니까?')) return;
+  try {
+    await fetch(`/api/common-parts/${id}`, { method: 'DELETE' });
+    toast('삭제 완료');
+    if (selectedCommonGroup) loadCommonPartsList(selectedCommonGroup);
+  } catch (e) { toast('삭제 실패', 'danger'); }
+}
+
+async function aiSuggestCommonParts() {
+  if (!selectedCommonGroup) return;
+  document.getElementById('ai-suggest-result').innerHTML = '<div class="spinner-border spinner-border-sm text-info"></div> AI 분석 중...';
+  try {
+    const result = await api('GET', `/api/common-parts/suggest/${selectedCommonGroup}`);
+    let html = '';
+    if (result.candidates.length) {
+      html += '<strong>추천 후보:</strong><ul class="mb-1">' +
+        result.candidates.slice(0, 5).map(c =>
+          `<li>${c.part_number} (${c.part_name}) - ${c.percentage}%</li>`
+        ).join('') + '</ul>';
+    }
+    html += `<div class="text-muted">${result.ai_suggestion || ''}</div>`;
+    document.getElementById('ai-suggest-result').innerHTML = html;
+  } catch (e) {
+    document.getElementById('ai-suggest-result').innerHTML = '<span class="text-danger">AI 분석 실패</span>';
+  }
+}
+
+// ===================== History =====================
+async function loadHistory() {
+  const type = document.getElementById('history-type-filter').value;
+  try {
+    const result = await api('GET', `/api/history?limit=100&action_type=${type}`);
+    const actionLabel = { replace:'부품 교체', update_qty:'수량 변경', delete:'삭제', add:'추가', rollback:'롤백', create:'생성' };
+    document.getElementById('history-list').innerHTML = result.items.map(h => `
+      <tr>
+        <td>${h.id}</td>
+        <td>${new Date(h.timestamp).toLocaleString('ko-KR')}</td>
+        <td><span class="badge bg-secondary">${actionLabel[h.action_type]||h.action_type}</span></td>
+        <td>${h.operator}</td>
+        <td>${(h.affected_products||[]).slice(0,3).join(', ')}${(h.affected_products||[]).length>3?'...':''}</td>
+        <td>${h.reason.substring(0,40)}</td>
+        <td>${h.is_rolled_back ? '<span class="badge bg-warning text-dark">롤백됨</span>' : '<span class="badge bg-success">정상</span>'}</td>
+        <td>
+          <button class="btn btn-outline-info btn-sm py-0" onclick="showHistoryDetail(${h.id})"><i class="bi bi-eye"></i></button>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="8" class="text-center text-muted">이력 없음</td></tr>';
+  } catch (e) { toast('이력 로드 실패: ' + e.message, 'danger'); }
+}
+
+async function showHistoryDetail(id) {
+  currentHistoryId = id;
+  try {
+    const h = await api('GET', `/api/history/${id}`);
+    const changes = h.changes || {};
+    document.getElementById('history-detail-body').innerHTML = `
+      <div class="row g-2 mb-3">
+        <div class="col-md-6"><strong>유형:</strong> ${h.action_type}</div>
+        <div class="col-md-6"><strong>작업자:</strong> ${h.operator}</div>
+        <div class="col-md-6"><strong>일시:</strong> ${new Date(h.timestamp).toLocaleString('ko-KR')}</div>
+        <div class="col-md-12"><strong>사유:</strong> ${h.reason}</div>
+        <div class="col-md-12"><strong>영향 품번:</strong> ${(h.affected_products||[]).join(', ')}</div>
+      </div>
+      <div><strong>변경 내용:</strong><pre class="bg-light p-2 rounded mt-1" style="font-size:0.78rem;max-height:300px;overflow-y:auto">${JSON.stringify(changes, null, 2)}</pre></div>`;
+    document.getElementById('btn-rollback').disabled = h.is_rolled_back;
+    const modal = new bootstrap.Modal(document.getElementById('modal-history-detail'));
+    modal.show();
+  } catch (e) { toast('상세 로드 실패: ' + e.message, 'danger'); }
+}
+
+async function rollbackHistory() {
+  if (!currentHistoryId) return;
+  if (!confirm('이 변경을 롤백하시겠습니까? 이전 상태로 복원됩니다.')) return;
+  try {
+    await api('POST', `/api/history/${currentHistoryId}/rollback`);
+    toast('✅ 롤백 완료', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modal-history-detail')).hide();
+    loadHistory();
+  } catch (e) { toast('롤백 실패: ' + e.message, 'danger'); }
+}
+
+// ===================== Notification =====================
+async function loadNotifHistory() {
+  try {
+    const result = await api('GET', '/api/history?limit=20');
+    const actionLabel = { replace:'부품 교체', update_qty:'수량 변경', delete:'삭제', add:'추가', create:'생성' };
+    document.getElementById('notif-history-list').innerHTML = result.items.map(h => `
+      <tr onclick="selectNotifHistory(${h.id})" style="cursor:pointer" id="notif-h-${h.id}">
+        <td>${h.id}</td>
+        <td>${new Date(h.timestamp).toLocaleDateString('ko-KR')}</td>
+        <td>${actionLabel[h.action_type]||h.action_type}</td>
+      </tr>`).join('') || '<tr><td colspan="3" class="text-center text-muted">이력 없음</td></tr>';
+  } catch (e) {}
+}
+
+let selectedNotifHistoryId = null;
+function selectNotifHistory(id) {
+  selectedNotifHistoryId = id;
+  document.querySelectorAll('#notif-history-list tr').forEach(r => r.classList.remove('table-primary'));
+  const row = document.getElementById(`notif-h-${id}`);
+  if (row) row.classList.add('table-primary');
+}
+
+async function loadRecipients() {
+  try {
+    const groups = await api('GET', '/api/notifications/recipients');
+    document.getElementById('notif-recipient-groups').innerHTML = groups.map(g => `
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="rg-${g.id}" value="${g.id}">
+        <label class="form-check-label" for="rg-${g.id}">${g.group_name}</label>
+      </div>`).join('') || '<div class="text-muted small">수신 그룹 없음 (설정에서 추가)</div>';
+  } catch (e) {}
+}
+
+async function generateEmail() {
+  if (!selectedNotifHistoryId) { toast('이력을 선택해주세요', 'warning'); return; }
+  document.getElementById('notif-body').value = '⏳ AI 메일 생성 중... (잠시 기다려주세요)';
+  try {
+    const result = await api('POST', `/api/notifications/generate?change_log_id=${selectedNotifHistoryId}`);
+    document.getElementById('notif-subject').value = result.subject;
+    document.getElementById('notif-body').value = result.body;
+    toast('✅ AI 메일 생성 완료', 'success');
+  } catch (e) {
+    document.getElementById('notif-body').value = '';
+    toast('메일 생성 실패: ' + e.message, 'danger');
+  }
+}
+
+async function sendEmail() {
+  if (!selectedNotifHistoryId) { toast('이력을 선택해주세요', 'warning'); return; }
+  const groupIds = [...document.querySelectorAll('#notif-recipient-groups input:checked')].map(c => parseInt(c.value));
+  const extraEmails = document.getElementById('notif-extra-emails').value.split(',').map(e => e.trim()).filter(Boolean);
+  if (!groupIds.length && !extraEmails.length) { toast('수신자를 선택해주세요', 'warning'); return; }
+  try {
+    const body = document.getElementById('notif-body').value;
+    const result = await api('POST', '/api/notifications/send', {
+      change_log_id: selectedNotifHistoryId,
+      recipient_group_ids: groupIds,
+      extra_emails: extraEmails,
+      custom_body: body || null,
+    });
+    if (result.success) toast('✅ ' + result.message, 'success');
+    else toast('발송 실패: ' + result.message, 'warning');
+  } catch (e) { toast('발송 오류: ' + e.message, 'danger'); }
+}
+
+// ===================== Import =====================
+async function importFiles() {
+  const files = document.getElementById('import-files').files;
+  if (!files.length) { toast('파일을 선택해주세요', 'warning'); return; }
+  const overwrite = document.getElementById('import-overwrite').checked;
+  const formData = new FormData();
+  for (const file of files) formData.append('files', file);
+  try {
+    document.getElementById('import-results').innerHTML = '<div class="alert alert-info">임포트 중...</div>';
+    const result = await apiForm(`/api/import/excel?overwrite=${overwrite}`, formData);
+    renderImportResults(result.results);
+  } catch (e) { toast('임포트 실패: ' + e.message, 'danger'); }
+}
+
+async function scanFolder() {
+  const path = document.getElementById('import-folder-path').value.trim();
+  if (!path) { toast('폴더 경로를 입력해주세요', 'warning'); return; }
+  const overwrite = document.getElementById('folder-overwrite').checked;
+  try {
+    document.getElementById('import-results').innerHTML = '<div class="alert alert-info">폴더 스캔 중...</div>';
+    const result = await api('POST', `/api/import/scan-folder?folder_path=${encodeURIComponent(path)}&overwrite=${overwrite}`);
+    renderImportResults(result.results);
+  } catch (e) { toast('스캔 실패: ' + e.message, 'danger'); }
+}
+
+function renderImportResults(results) {
+  if (!results || !results.length) {
+    document.getElementById('import-results').innerHTML = '<div class="alert alert-warning">처리된 파일 없음</div>';
+    return;
+  }
+  const rows = results.map(r => {
+    const badgeClass = r.status === 'success' ? 'bg-success' : r.status === 'skipped' ? 'bg-warning text-dark' : 'bg-danger';
+    const statusText = r.status === 'success' ? '성공' : r.status === 'skipped' ? '건너뜀' : '오류';
+    return `<tr>
+      <td>${r.filename}</td>
+      <td><span class="badge ${badgeClass}">${statusText}</span></td>
+      <td>${r.part_number || ''}</td>
+      <td>${r.bom_items_count !== undefined ? r.bom_items_count + '개' : ''}</td>
+      <td>${r.reason || ''}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('import-results').innerHTML = `
+    <div class="card"><div class="card-header">임포트 결과 (${results.length}개 파일)</div>
+    <div class="card-body p-0"><table class="table table-sm mb-0">
+      <thead><tr><th>파일명</th><th>상태</th><th>품번</th><th>BOM 항목 수</th><th>메시지</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></div>`;
+  const ok = results.filter(r => r.status === 'success').length;
+  if (ok > 0) toast(`✅ ${ok}개 파일 임포트 완료`, 'success');
+}
+
+// ===================== Init =====================
+navigateTo('dashboard');
+</script>
+</body>
+</html>
