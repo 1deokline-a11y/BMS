@@ -32,7 +32,21 @@ app.use('/api', async (_req, _res, next) => { await dbReady; next(); });
 // ======================================================
 // HEALTH
 // ======================================================
-app.get('/api/health', (_, res) => res.json({ status: 'ok', version: '1.0.0' }));
+app.get('/api/health', async (_, res) => {
+  const hasEnv = !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+  if (!hasEnv) {
+    return res.status(503).json({
+      status: 'error',
+      message: 'SUPABASE_URL 및 SUPABASE_ANON_KEY 환경변수가 설정되지 않았습니다. Vercel Settings → Environment Variables에서 추가하세요.',
+    });
+  }
+  try {
+    await dbReady;
+    res.json({ status: 'ok', version: '1.0.0', db: 'connected' });
+  } catch (e) {
+    res.status(503).json({ status: 'error', message: e.message });
+  }
+});
 
 // ======================================================
 // PRODUCTS
