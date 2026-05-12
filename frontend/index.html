@@ -100,12 +100,47 @@ body { background: #f4f6f9; font-size: 0.875rem; }
 
 <!-- ====== DASHBOARD ====== -->
 <div class="page" id="page-dashboard">
-  <div class="page-title"><i class="bi bi-speedometer2 me-2"></i>대시보드</div>
-  <div class="row g-3 mb-4" id="stat-cards">
+
+  <!-- 분류 탭 + 드롭다운 -->
+  <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom flex-wrap">
+    <ul class="nav nav-tabs border-0 gap-1" id="dash-cat-tabs">
+      <li class="nav-item">
+        <a class="nav-link active fw-semibold px-3" href="#" data-cat="all">
+          <i class="bi bi-grid me-1"></i>전체
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link fw-semibold px-3" href="#" data-cat="기구물">
+          <i class="bi bi-box-seam me-1"></i>기구물
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link fw-semibold px-3" href="#" data-cat="수동소자">
+          <i class="bi bi-cpu me-1"></i>수동소자
+        </a>
+      </li>
+    </ul>
+
+    <!-- 세부 분류 드롭다운 (기구물 탭 선택 시 활성화) -->
+    <div class="dropdown" id="dash-sub-wrap">
+      <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
+              id="dash-sub-btn" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-funnel me-1"></i><span id="dash-sub-label">세부 분류</span>
+      </button>
+      <ul class="dropdown-menu shadow-sm" id="dash-sub-menu" style="min-width:180px"></ul>
+    </div>
+
+    <span class="badge bg-light text-secondary border ms-auto px-3 py-2 fs-6" id="dash-filter-badge">
+      전체
+    </span>
+  </div>
+
+  <!-- 통계 카드 -->
+  <div class="row g-3 mb-4">
     <div class="col-md-3">
       <div class="stat-card" style="background:linear-gradient(135deg,#4299e1,#3182ce)">
         <div class="stat-value" id="stat-products">-</div>
-        <div class="stat-label">전체 제품 수</div>
+        <div class="stat-label">제품 수</div>
       </div>
     </div>
     <div class="col-md-3">
@@ -127,32 +162,28 @@ body { background: #f4f6f9; font-size: 0.875rem; }
       </div>
     </div>
   </div>
-  <div class="row g-3">
-    <div class="col-md-8">
-      <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <span><i class="bi bi-clock-history me-1"></i>최근 변경 이력</span>
-        </div>
-        <div class="card-body p-0">
-          <table class="table table-hover mb-0">
-            <thead><tr><th>일시</th><th>유형</th><th>작업자</th><th>영향 품번</th><th>사유</th></tr></thead>
-            <tbody id="recent-history"></tbody>
-          </table>
-        </div>
-      </div>
+
+  <!-- 최근 변경 이력 -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-clock-history me-1"></i>최근 변경 이력</span>
+      <a href="#" class="small text-primary" onclick="navigateTo('history');return false;">전체 보기</a>
     </div>
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header"><i class="bi bi-bar-chart me-1"></i>제품군 요약</div>
-        <div class="card-body p-0">
-          <table class="table mb-0">
-            <thead><tr><th>제품군</th><th class="text-center">제품 수</th></tr></thead>
-            <tbody id="group-summary"></tbody>
-          </table>
-        </div>
-      </div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th style="width:150px">일시</th>
+            <th>품번</th>
+            <th>사유</th>
+            <th style="width:90px">작업자</th>
+          </tr>
+        </thead>
+        <tbody id="recent-history"></tbody>
+      </table>
     </div>
   </div>
+
 </div>
 
 <!-- ====== PRODUCTS ====== -->
@@ -792,47 +823,168 @@ function toast(msg, type = 'success') {
 }
 
 // ===================== Dashboard =====================
+// ── 대시보드 분류 정의 ──────────────────────────────────────────
+const DASH_CATEGORIES = {
+  '기구물': {
+    '함체':  ['BOFC','ZOFC','DOFC'],
+    '단자함': ['MA','SA','NA','MD','SD','SB','NB','SC','M5L','M5K','MS','IJP'],
+  },
+  '수동소자': {},
+};
+
+// product_group prefix → 서브카테고리 매핑 (향후 확장)
+const GROUP_PREFIX_MAP = { 'A11': 'BOFC', 'A12': 'ZOFC', 'A13': 'DOFC' };
+
+let dashState = { cat: 'all', sub: null };
+let dashAllProducts = [];
+
+function dashMatchSub(product, subCode) {
+  const haystack = [product.part_number, product.product_group, product.name]
+    .join(' ').toUpperCase();
+  if (haystack.includes(subCode.toUpperCase())) return true;
+  // product_group prefix 매핑 확인
+  const mapped = GROUP_PREFIX_MAP[product.product_group.substring(0, 3)];
+  return mapped === subCode;
+}
+
+function dashFilterProducts(products) {
+  if (dashState.cat === 'all') return products;
+  if (dashState.sub) return products.filter(p => dashMatchSub(p, dashState.sub));
+  // 대분류만 선택된 경우
+  if (dashState.cat === '기구물') {
+    const allSubs = Object.values(DASH_CATEGORIES['기구물']).flat();
+    return products.filter(p => allSubs.some(s => dashMatchSub(p, s)));
+  }
+  if (dashState.cat === '수동소자') {
+    const gukuSubs = Object.values(DASH_CATEGORIES['기구물']).flat();
+    return products.filter(p => !gukuSubs.some(s => dashMatchSub(p, s)));
+  }
+  return products;
+}
+
+function dashRenderSubMenu() {
+  const menu = document.getElementById('dash-sub-menu');
+  const btn  = document.getElementById('dash-sub-btn');
+  if (dashState.cat !== '기구물') {
+    btn.disabled = true;
+    document.getElementById('dash-sub-label').textContent = '세부 분류';
+    menu.innerHTML = '';
+    return;
+  }
+  btn.disabled = false;
+  const catDef = DASH_CATEGORIES['기구물'];
+  menu.innerHTML = Object.entries(catDef).map(([group, codes]) => `
+    <li><h6 class="dropdown-header">${group}</h6></li>
+    ${codes.map(c => `
+      <li>
+        <a class="dropdown-item d-flex align-items-center gap-2 ${dashState.sub === c ? 'active' : ''}"
+           href="#" onclick="dashSelectSub('${c}');return false;">
+          <span class="badge bg-secondary" style="min-width:48px">${c}</span>
+        </a>
+      </li>`).join('')}
+    <li><hr class="dropdown-divider m-1"></li>
+  `).join('');
+}
+
+function dashUpdateBadge() {
+  const el = document.getElementById('dash-filter-badge');
+  if (dashState.sub) el.textContent = `${dashState.cat} > ${dashState.sub}`;
+  else if (dashState.cat !== 'all') el.textContent = dashState.cat;
+  else el.textContent = '전체';
+}
+
+function dashSelectSub(sub) {
+  dashState.sub = (dashState.sub === sub) ? null : sub;
+  document.getElementById('dash-sub-label').textContent = dashState.sub || '세부 분류';
+  dashUpdateBadge();
+  dashRenderSubMenu();
+  renderDashboardData();
+}
+
+function renderDashboardData() {
+  const filtered = dashFilterProducts(dashAllProducts);
+  document.getElementById('stat-products').textContent = filtered.length;
+  const groups = new Set(filtered.map(p => p.product_group));
+  document.getElementById('stat-groups').textContent = groups.size;
+}
+
 async function loadDashboard() {
+  // 탭 이벤트 (최초 1회 등록)
+  if (!document.getElementById('dash-cat-tabs').dataset.init) {
+    document.getElementById('dash-cat-tabs').dataset.init = '1';
+    document.querySelectorAll('#dash-cat-tabs .nav-link').forEach(a => {
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        document.querySelectorAll('#dash-cat-tabs .nav-link').forEach(x => x.classList.remove('active'));
+        a.classList.add('active');
+        dashState.cat = a.dataset.cat;
+        dashState.sub = null;
+        document.getElementById('dash-sub-label').textContent = '세부 분류';
+        dashRenderSubMenu();
+        dashUpdateBadge();
+        renderDashboardData();
+        renderDashHistory();
+      });
+    });
+  }
+
   try {
-    const [products, groups, history] = await Promise.all([
+    const [products, histRes, partsRes] = await Promise.all([
       api('GET', '/api/products'),
-      api('GET', '/api/products/groups'),
-      api('GET', '/api/history?limit=10'),
+      api('GET', '/api/history?limit=50'),
+      api('GET', '/api/bulk-edit/search?q='),
     ]);
-    document.getElementById('stat-products').textContent = products.length;
-    document.getElementById('stat-groups').textContent = groups.length;
+    dashAllProducts = products;
 
-    // Group summary
-    const groupCount = {};
-    products.forEach(p => { groupCount[p.product_group] = (groupCount[p.product_group] || 0) + 1; });
-    document.getElementById('group-summary').innerHTML = Object.entries(groupCount)
-      .sort((a, b) => b[1] - a[1])
-      .map(([g, c]) => `<tr><td><span class="badge badge-group">${g}</span></td><td class="text-center">${c}</td></tr>`).join('');
+    renderDashboardData();
+    document.getElementById('stat-parts').textContent = partsRes.length || 0;
 
-    // Recent history
     const now = new Date();
-    const monthChanges = history.items.filter(h => {
+    const monthChanges = (histRes.items || []).filter(h => {
       const d = new Date(h.timestamp);
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
     document.getElementById('stat-changes').textContent = monthChanges;
 
-    const actionLabels = { replace: '부품 교체', update_qty: '수량 변경', delete: '삭제', add: '추가', rollback: '롤백', create: '생성' };
-    document.getElementById('recent-history').innerHTML = history.items.slice(0, 8).map(h => `
-      <tr>
-        <td>${new Date(h.timestamp).toLocaleDateString('ko-KR')} ${new Date(h.timestamp).toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'})}</td>
-        <td><span class="badge bg-secondary">${actionLabels[h.action_type] || h.action_type}</span></td>
-        <td>${h.operator}</td>
-        <td>${(h.affected_products || []).slice(0, 2).join(', ')}${(h.affected_products||[]).length > 2 ? '...' : ''}</td>
-        <td>${h.reason.substring(0, 30)}</td>
-      </tr>`).join('') || '<tr><td colspan="5" class="text-center text-muted">이력 없음</td></tr>';
-
-    // Count parts
-    const partsRes = await api('GET', '/api/bulk-edit/search?part_number=');
-    document.getElementById('stat-parts').textContent = partsRes.length || '-';
+    window._dashHistory = histRes.items || [];
+    dashRenderSubMenu();
+    dashUpdateBadge();
+    renderDashHistory();
   } catch (e) {
-    console.error(e);
+    console.error('[dashboard]', e);
   }
+}
+
+function renderDashHistory() {
+  const items = window._dashHistory || [];
+  const filtered = dashFilterProducts(dashAllProducts);
+  const filteredPNs = new Set(filtered.map(p => p.part_number));
+
+  const visible = dashState.cat === 'all'
+    ? items
+    : items.filter(h => (h.affected_products || []).some(pn => filteredPNs.has(pn)));
+
+  const tbody = document.getElementById('recent-history');
+  if (!visible.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">이력 없음</td></tr>';
+    return;
+  }
+  tbody.innerHTML = visible.slice(0, 15).map(h => {
+    const dt = new Date(h.timestamp);
+    const dateStr = dt.toLocaleDateString('ko-KR', { year:'2-digit', month:'2-digit', day:'2-digit' });
+    const timeStr = dt.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
+    const affected = (h.affected_products || []);
+    const pnStr = affected.length
+      ? affected.slice(0, 2).join(', ') + (affected.length > 2 ? ` 외 ${affected.length - 2}건` : '')
+      : '-';
+    return `
+      <tr>
+        <td class="text-nowrap">${dateStr} ${timeStr}</td>
+        <td>${pnStr}</td>
+        <td class="text-muted">${(h.reason || '').substring(0, 40)}</td>
+        <td>${h.operator}</td>
+      </tr>`;
+  }).join('');
 }
 
 // ===================== Products =====================
