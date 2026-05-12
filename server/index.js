@@ -276,7 +276,8 @@ async function buildCompareResult(id1, id2) {
     else                                   status = 'same';
     summary[status]++;
     const toDict = it => it ? { part_number: it.part.part_number, part_name: it.part.part_name,
-                                 spec: it.part.spec, quantity: it.quantity } : null;
+                                 spec: it.part.spec, unit: it.part.unit, quantity: it.quantity,
+                                 notes: it.notes || '' } : null;
     return { key, status, item1: toDict(i1), item2: toDict(i2) };
   });
   return {

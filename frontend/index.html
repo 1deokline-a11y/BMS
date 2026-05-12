@@ -10,10 +10,9 @@
 :root {
   --sidebar-width: 220px;
   --header-height: 56px;
-  --color-added: #c6efce;
-  --color-removed: #ffc7ce;
-  --color-qty: #ffeb9c;
-  --color-spec: #fce4d6;
+  --color-common: #d4f1d4;
+  --color-individual: #ffd4d4;
+  --color-qty: #fff3cd;
 }
 body { background: #f4f6f9; font-size: 0.875rem; }
 #sidebar {
@@ -82,12 +81,11 @@ body { background: #f4f6f9; font-size: 0.875rem; }
     <div class="nav-section">메인</div>
     <a href="#" data-page="dashboard"><i class="bi bi-speedometer2"></i> 대시보드</a>
     <div class="nav-section">BOM 관리</div>
-    <a href="#" data-page="products"><i class="bi bi-folder2-open"></i> 제품 탐색</a>
+    <a href="#" data-page="products"><i class="bi bi-file-earmark-text"></i> BOM</a>
     <a href="#" data-page="compare"><i class="bi bi-subtract"></i> BOM 비교</a>
     <a href="#" data-page="bulk-edit"><i class="bi bi-pencil-square"></i> 일괄 수정</a>
     <a href="#" data-page="new-bom"><i class="bi bi-plus-circle"></i> 신규 BOM 생성</a>
     <div class="nav-section">설정</div>
-    <a href="#" data-page="common-parts"><i class="bi bi-gear"></i> 공용 부품 관리</a>
     <a href="#" data-page="history"><i class="bi bi-clock-history"></i> 변경 이력</a>
     <a href="#" data-page="notification"><i class="bi bi-envelope"></i> 메일 발송</a>
     <div class="nav-section">가져오기</div>
@@ -168,53 +166,84 @@ body { background: #f4f6f9; font-size: 0.875rem; }
 
 </div>
 
-<!-- ====== PRODUCTS ====== -->
+<!-- ====== BOM ====== -->
 <div class="page" id="page-products">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <div class="page-title mb-0"><i class="bi bi-folder2-open me-2"></i>제품 탐색</div>
+    <div class="page-title mb-0"><i class="bi bi-file-earmark-text me-2"></i>BOM</div>
     <button class="btn btn-primary btn-sm" onclick="navigateTo('new-bom')">
       <i class="bi bi-plus-circle me-1"></i>신규 BOM 생성
     </button>
   </div>
-  <div class="row g-3">
-    <div class="col-md-3">
-      <div class="card h-100">
-        <div class="card-header">제품군 트리</div>
-        <div class="card-body p-2" id="product-tree" style="overflow-y:auto;max-height:70vh;"></div>
+
+  <!-- 검색 -->
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-5">
+          <input type="text" class="form-control form-control-sm" id="filter-search"
+                 placeholder="품번 / 품명 검색" onkeydown="if(event.key==='Enter')loadProducts()">
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-primary btn-sm" onclick="loadProducts()">
+            <i class="bi bi-search me-1"></i>검색
+          </button>
+        </div>
       </div>
     </div>
-    <div class="col-md-9">
-      <div class="card mb-3">
-        <div class="card-body py-2">
-          <div class="row g-2 align-items-center">
-            <div class="col-md-3">
-              <input type="text" class="form-control form-control-sm" id="filter-search" placeholder="품번/품명/고객사 검색">
-            </div>
-            <div class="col-md-2">
-              <input type="text" class="form-control form-control-sm" id="filter-customer" placeholder="고객사">
-            </div>
-            <div class="col-md-2">
-              <input type="text" class="form-control form-control-sm" id="filter-country" placeholder="국가향">
-            </div>
-            <div class="col-md-2">
-              <button class="btn btn-outline-primary btn-sm w-100" onclick="loadProducts()">
-                <i class="bi bi-search me-1"></i>검색
-              </button>
-            </div>
-          </div>
+  </div>
+
+  <!-- 검색 결과 -->
+  <div class="card mb-3">
+    <div class="card-body p-0">
+      <table class="table table-hover table-sm mb-0">
+        <thead><tr><th>품번</th><th>품명</th><th>제품군</th></tr></thead>
+        <tbody id="product-list"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 선택된 BOM 상세 (인라인) -->
+  <div id="bom-inline-detail" style="display:none">
+    <div class="card mb-2">
+      <div class="card-body py-2 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+          <span class="fw-bold fs-5 text-primary" id="inline-pn">-</span>
+          <span class="text-secondary" id="inline-name">-</span>
+          <span class="badge bg-secondary" id="inline-version">BOM ver -</span>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-success btn-sm" onclick="exportBOM()">
+            <i class="bi bi-download me-1"></i>엑셀 다운로드
+          </button>
+          <button class="btn btn-success btn-sm" onclick="saveBOM()">
+            <i class="bi bi-save me-1"></i>저장
+          </button>
         </div>
       </div>
-      <div class="card">
-        <div class="card-body p-0">
-          <table class="table table-hover mb-0">
-            <thead>
-              <tr>
-                <th>품번</th><th>제품명</th><th>제품군</th><th>고객사</th><th>국가향</th><th>사양</th><th>작업</th>
-              </tr>
-            </thead>
-            <tbody id="product-list"></tbody>
-          </table>
-        </div>
+    </div>
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>BOM 리스트 <span class="badge bg-primary ms-1" id="bom-item-count">0</span></span>
+        <button class="btn btn-outline-primary btn-sm" onclick="addBOMRow()">
+          <i class="bi bi-plus-circle me-1"></i>행 추가
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <table class="table bom-table mb-0">
+          <thead>
+            <tr>
+              <th width="45">NO.</th>
+              <th>품목코드</th>
+              <th>품목명</th>
+              <th>규격명</th>
+              <th width="60">단위</th>
+              <th width="70">수량</th>
+              <th>적요</th>
+              <th width="50">삭제</th>
+            </tr>
+          </thead>
+          <tbody id="bom-detail-body"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -318,26 +347,45 @@ body { background: #f4f6f9; font-size: 0.875rem; }
       </div>
     </div>
   </div>
-  <div class="mb-2">
-    <span class="me-3"><span class="legend-dot" style="background:var(--color-added)"></span>추가됨</span>
-    <span class="me-3"><span class="legend-dot" style="background:var(--color-removed)"></span>삭제됨</span>
-    <span class="me-3"><span class="legend-dot" style="background:var(--color-qty)"></span>수량 차이</span>
-    <span class="me-3"><span class="legend-dot" style="background:var(--color-spec)"></span>규격 차이</span>
+
+  <!-- 범례 -->
+  <div class="mb-3 d-flex align-items-center gap-4">
+    <span class="d-flex align-items-center gap-1">
+      <span class="legend-dot" style="background:var(--color-common);border:1px solid #9ed89e"></span>
+      <small>공통부품</small>
+    </span>
+    <span class="d-flex align-items-center gap-1">
+      <span class="legend-dot" style="background:var(--color-individual);border:1px solid #f0a0a0"></span>
+      <small>개별부품</small>
+    </span>
+    <span class="d-flex align-items-center gap-1">
+      <span class="legend-dot" style="background:var(--color-qty);border:1px solid #ffe08a"></span>
+      <small>수량차이</small>
+    </span>
   </div>
+
   <div id="compare-summary" class="mb-3"></div>
   <div class="card">
-    <div class="card-body p-0">
-      <table class="table table-sm mb-0" id="compare-table">
+    <div class="card-body p-0" style="overflow-x:auto">
+      <table class="table table-sm mb-0 table-bordered" id="compare-table" style="min-width:960px">
         <thead>
           <tr id="compare-header">
-            <th>구분</th>
-            <th colspan="4" class="text-center" id="compare-h1">BOM 1</th>
-            <th colspan="4" class="text-center" id="compare-h2">BOM 2</th>
+            <th colspan="6" class="text-center fw-bold" id="compare-h1" style="background:#eef4ff">BOM 1</th>
+            <th colspan="6" class="text-center fw-bold" id="compare-h2" style="background:#fff4f0">BOM 2</th>
           </tr>
           <tr>
-            <th width="80">상태</th>
-            <th>부품번호</th><th>부품명</th><th>규격</th><th>수량</th>
-            <th>부품번호</th><th>부품명</th><th>규격</th><th>수량</th>
+            <th style="background:#eef4ff">품목코드</th>
+            <th style="background:#eef4ff">품목명</th>
+            <th style="background:#eef4ff">규격명</th>
+            <th style="background:#eef4ff">단위</th>
+            <th style="background:#eef4ff">수량</th>
+            <th style="background:#eef4ff">적요</th>
+            <th style="background:#fff4f0">품목코드</th>
+            <th style="background:#fff4f0">품목명</th>
+            <th style="background:#fff4f0">규격명</th>
+            <th style="background:#fff4f0">단위</th>
+            <th style="background:#fff4f0">수량</th>
+            <th style="background:#fff4f0">적요</th>
           </tr>
         </thead>
         <tbody id="compare-body"></tbody>
@@ -499,45 +547,6 @@ body { background: #f4f6f9; font-size: 0.875rem; }
   </div>
 </div>
 
-<!-- ====== COMMON PARTS ====== -->
-<div class="page" id="page-common-parts">
-  <div class="page-title"><i class="bi bi-gear me-2"></i>공용 부품 관리</div>
-  <div class="row g-3">
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">제품군 선택</div>
-        <div class="card-body p-2" id="common-parts-group-list"></div>
-      </div>
-      <div class="card mt-3">
-        <div class="card-header">AI 공용 부품 추천</div>
-        <div class="card-body">
-          <p class="text-muted small">선택된 제품군의 BOM 데이터를 분석하여 공용 부품을 자동으로 추천합니다.</p>
-          <button class="btn btn-info btn-sm w-100" id="btn-ai-suggest" onclick="aiSuggestCommonParts()" disabled>
-            <i class="bi bi-robot me-1"></i>AI 분석 실행
-          </button>
-          <div id="ai-suggest-result" class="mt-2 small"></div>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-8">
-      <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <span id="common-parts-group-title">공용 부품 목록</span>
-          <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-add-common">
-            <i class="bi bi-plus-circle me-1"></i>공용 부품 추가
-          </button>
-        </div>
-        <div class="card-body p-0">
-          <table class="table mb-0">
-            <thead><tr><th>부품번호</th><th>부품명</th><th>규격</th><th>단위</th><th>기본수량</th><th>삭제</th></tr></thead>
-            <tbody id="common-parts-list"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ====== HISTORY ====== -->
 <div class="page" id="page-history">
   <div class="page-title"><i class="bi bi-clock-history me-2"></i>변경 이력</div>
@@ -672,47 +681,6 @@ body { background: #f4f6f9; font-size: 0.875rem; }
 
 </div><!-- end main-content -->
 
-<!-- Modal: Add Common Part -->
-<div class="modal fade" id="modal-add-common" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">공용 부품 추가</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-2">
-          <label class="form-label">제품군</label>
-          <input type="text" class="form-control form-control-sm" id="cp-group" readonly>
-        </div>
-        <div class="mb-2">
-          <label class="form-label">부품번호</label>
-          <input type="text" class="form-control form-control-sm" id="cp-pn">
-        </div>
-        <div class="mb-2">
-          <label class="form-label">부품명</label>
-          <input type="text" class="form-control form-control-sm" id="cp-name">
-        </div>
-        <div class="mb-2">
-          <label class="form-label">규격</label>
-          <input type="text" class="form-control form-control-sm" id="cp-spec">
-        </div>
-        <div class="mb-2">
-          <label class="form-label">단위</label>
-          <input type="text" class="form-control form-control-sm" id="cp-unit" value="EA">
-        </div>
-        <div class="mb-2">
-          <label class="form-label">기본 수량</label>
-          <input type="number" class="form-control form-control-sm" id="cp-qty" value="1" step="0.1">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">취소</button>
-        <button class="btn btn-primary btn-sm" onclick="addCommonPart()">추가</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Modal: History Detail -->
 <div class="modal fade" id="modal-history-detail" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -760,7 +728,6 @@ function navigateTo(page, params = {}) {
   if (page === 'compare') loadCompareSelects();
   if (page === 'history') loadHistory();
   if (page === 'notification') { loadNotifHistory(); loadRecipients(); }
-  if (page === 'common-parts') loadCommonPartsGroups();
   if (page === 'new-bom') loadGroupsForNew();
   if (page === 'import') {}
   if (page === 'bom-detail' && params.id) { currentProductId = params.id; loadBOMDetail(params.id); }
@@ -907,6 +874,7 @@ async function loadDashboard() {
         dashUpdateBadge();
         renderDashboardData();
         renderDashHistory();
+        navigateTo('products');
       });
     });
   }
@@ -963,68 +931,24 @@ let allProducts = [];
 
 async function loadProducts() {
   try {
-    const search = document.getElementById('filter-search').value;
-    const customer = document.getElementById('filter-customer').value;
-    const country = document.getElementById('filter-country').value;
+    const search = document.getElementById('filter-search').value.trim();
     let url = '/api/products?';
     if (search) url += `search=${encodeURIComponent(search)}&`;
-    if (customer) url += `customer=${encodeURIComponent(customer)}&`;
-    if (country) url += `country_spec=${encodeURIComponent(country)}&`;
-    allProducts = await api('GET', url);
-    renderProductList(allProducts);
-    renderProductTree(allProducts);
-  } catch (e) {
-    toast('제품 목록 로드 실패: ' + e.message, 'danger');
-  }
-}
-
-function renderProductTree(products) {
-  const groups = {};
-  products.forEach(p => {
-    if (!groups[p.product_group]) groups[p.product_group] = [];
-    groups[p.product_group].push(p);
-  });
-  const treeEl = document.getElementById('product-tree');
-  treeEl.innerHTML = Object.entries(groups).map(([g, prods]) => `
-    <div class="tree-group mb-1" onclick="filterByGroup('${g}')">
-      <i class="bi bi-folder me-1"></i>${g} <span class="badge bg-secondary ms-1">${prods.length}</span>
-    </div>
-    <div class="ms-3 mb-2">
-      ${prods.map(p => `<div class="tree-item" onclick="filterByGroup('${g}','${p.id}')">
-        <span class="text-muted">${p.variant_code}</span> ${p.name.substring(0,20)}
-      </div>`).join('')}
-    </div>`).join('');
-}
-
-function filterByGroup(group, productId) {
-  document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('selected'));
-  const filtered = productId
-    ? allProducts.filter(p => p.id == productId)
-    : allProducts.filter(p => p.product_group === group);
-  renderProductList(filtered);
-  if (productId) {
-    event.currentTarget.classList.add('selected');
-  }
+    const data = await api('GET', url);
+    allProducts = data;
+    renderProductList(data);
+    // 상세 숨김
+    document.getElementById('bom-inline-detail').style.display = 'none';
+  } catch (e) { toast('제품 목록 로드 실패: ' + e.message, 'danger'); }
 }
 
 function renderProductList(products) {
   document.getElementById('product-list').innerHTML = products.map(p => `
-    <tr>
-      <td><a href="#" onclick="openBOM(${p.id})" class="text-primary fw-bold">${p.part_number}</a></td>
+    <tr style="cursor:pointer" onclick="openBOM(${p.id})" class="product-list-row">
+      <td class="fw-semibold text-primary">${p.part_number}</td>
       <td>${p.name}</td>
       <td><span class="badge badge-group">${p.product_group}</span></td>
-      <td>${p.customer}</td>
-      <td>${p.country_spec}</td>
-      <td>${p.spec}</td>
-      <td>
-        <button class="btn btn-outline-primary btn-sm btn-xs py-0" onclick="openBOM(${p.id})">
-          <i class="bi bi-eye"></i>
-        </button>
-        <button class="btn btn-outline-danger btn-sm btn-xs py-0 ms-1" onclick="deleteProduct(${p.id},'${p.part_number}')">
-          <i class="bi bi-trash"></i>
-        </button>
-      </td>
-    </tr>`).join('') || '<tr><td colspan="7" class="text-center text-muted">제품 없음</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="3" class="text-center text-muted py-3">검색 결과 없음</td></tr>';
 }
 
 async function deleteProduct(id, pn) {
@@ -1037,7 +961,12 @@ async function deleteProduct(id, pn) {
 }
 
 function openBOM(id) {
-  navigateTo('bom-detail', { id });
+  // 선택된 행 하이라이트
+  document.querySelectorAll('.product-list-row').forEach(r => r.classList.remove('table-active'));
+  const row = [...document.querySelectorAll('.product-list-row')].find(r => r.onclick && r.getAttribute('onclick')?.includes(`(${id})`));
+  if (row) row.classList.add('table-active');
+  currentProductId = id;
+  loadBOMInlineDetail(id);
 }
 
 // ===================== BOM Detail =====================
@@ -1063,7 +992,26 @@ async function loadBOMDetail(id) {
   }
 }
 
+async function loadBOMInlineDetail(id) {
+  try {
+    const p = await api('GET', `/api/products/${id}`);
+    currentProduct = p;
+    currentBOMItems = JSON.parse(JSON.stringify(p.bom_items));
+    document.getElementById('inline-pn').textContent = p.part_number;
+    document.getElementById('inline-name').textContent = p.name;
+    document.getElementById('inline-version').textContent = `BOM ver ${p.variant_code || '0000'}`;
+    document.getElementById('bom-inline-detail').style.display = '';
+    document.getElementById('bom-inline-detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    renderBOMDetailTable();
+  } catch (e) {
+    toast('BOM 로드 실패: ' + e.message, 'danger');
+  }
+}
+
 function renderBOMDetailTable() {
+  const count = currentBOMItems.length;
+  const el = document.getElementById('bom-item-count');
+  if (el) el.textContent = count;
   const tbody = document.getElementById('bom-detail-body');
   tbody.innerHTML = currentBOMItems.map((item, i) => {
     const p = item.part || {};
@@ -1161,29 +1109,38 @@ function renderCompareResult(result) {
   document.getElementById('compare-h1').textContent = result.product1.part_number;
   document.getElementById('compare-h2').textContent = result.product2.part_number;
   const s = result.summary;
+  const common = s.same + (s.spec_diff || 0);
+  const individual = s.added + s.removed;
   document.getElementById('compare-summary').innerHTML = `
     <div class="d-flex gap-2 flex-wrap">
       <span class="badge bg-secondary">전체 ${result.diffs.length}개</span>
-      <span class="badge" style="background:var(--color-added);color:#155724">추가 ${s.added}</span>
-      <span class="badge" style="background:var(--color-removed);color:#721c24">삭제 ${s.removed}</span>
-      <span class="badge" style="background:var(--color-qty);color:#856404">수량차이 ${s.qty_diff}</span>
-      <span class="badge" style="background:var(--color-spec);color:#6c3425">규격차이 ${s.spec_diff}</span>
-      <span class="badge bg-light text-dark">동일 ${s.same}</span>
+      <span class="badge" style="background:var(--color-common);color:#155724;border:1px solid #9ed89e">공통 ${common}</span>
+      <span class="badge" style="background:var(--color-individual);color:#721c24;border:1px solid #f0a0a0">개별 ${individual}</span>
+      <span class="badge" style="background:var(--color-qty);color:#856404;border:1px solid #ffe08a">수량차이 ${s.qty_diff}</span>
     </div>`;
-  const statusClass = { added:'diff-added', removed:'diff-removed', qty_diff:'diff-qty', spec_diff:'diff-spec', same:'' };
-  const statusLabel = { added:'추가', removed:'삭제', qty_diff:'수량↕', spec_diff:'규격↕', same:'동일' };
+
   document.getElementById('compare-body').innerHTML = result.diffs.map(d => {
-    const cls = statusClass[d.status] || '';
+    let rowStyle = '';
+    if (d.status === 'same' || d.status === 'spec_diff') rowStyle = `background:var(--color-common)`;
+    else if (d.status === 'added' || d.status === 'removed') rowStyle = `background:var(--color-individual)`;
+    else if (d.status === 'qty_diff') rowStyle = `background:var(--color-qty)`;
     const i1 = d.item1 || {};
     const i2 = d.item2 || {};
-    return `<tr class="${cls}">
-      <td><small>${statusLabel[d.status]||d.status}</small></td>
-      <td>${i1.part_number||''}</td><td>${i1.part_name||''}</td>
-      <td>${i1.spec||''}</td><td>${i1.quantity||''}</td>
-      <td>${i2.part_number||''}</td><td>${i2.part_name||''}</td>
-      <td>${i2.spec||''}</td><td>${i2.quantity||''}</td>
+    return `<tr style="${rowStyle}">
+      <td>${i1.part_number||''}</td>
+      <td>${i1.part_name||''}</td>
+      <td>${i1.spec||''}</td>
+      <td>${i1.unit||''}</td>
+      <td>${i1.quantity||''}</td>
+      <td>${i1.notes||''}</td>
+      <td>${i2.part_number||''}</td>
+      <td>${i2.part_name||''}</td>
+      <td>${i2.spec||''}</td>
+      <td>${i2.unit||''}</td>
+      <td>${i2.quantity||''}</td>
+      <td>${i2.notes||''}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="9" class="text-center text-muted">데이터 없음</td></tr>';
+  }).join('') || '<tr><td colspan="12" class="text-center text-muted">데이터 없음</td></tr>';
 }
 
 function exportCompare() {
