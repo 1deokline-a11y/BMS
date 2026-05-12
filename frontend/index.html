@@ -101,64 +101,46 @@ body { background: #f4f6f9; font-size: 0.875rem; }
 <!-- ====== DASHBOARD ====== -->
 <div class="page" id="page-dashboard">
 
-  <!-- 분류 탭 + 드롭다운 -->
-  <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom flex-wrap">
-    <ul class="nav nav-tabs border-0 gap-1" id="dash-cat-tabs">
-      <li class="nav-item">
-        <a class="nav-link active fw-semibold px-3" href="#" data-cat="all">
-          <i class="bi bi-grid me-1"></i>전체
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link fw-semibold px-3" href="#" data-cat="기구물">
-          <i class="bi bi-box-seam me-1"></i>기구물
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link fw-semibold px-3" href="#" data-cat="수동소자">
-          <i class="bi bi-cpu me-1"></i>수동소자
-        </a>
-      </li>
-    </ul>
+  <!-- 분류 탭 허브 (중앙 배치) -->
+  <div class="card mb-4">
+    <div class="card-body py-5">
+      <div class="text-center">
+        <div class="text-muted mb-4" style="font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;font-weight:600">제품 분류 선택</div>
+        <div class="d-flex justify-content-center align-items-stretch gap-3 flex-wrap">
 
-    <!-- 세부 분류 드롭다운 (기구물 탭 선택 시 활성화) -->
-    <div class="dropdown" id="dash-sub-wrap">
-      <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
-              id="dash-sub-btn" data-bs-toggle="dropdown" aria-expanded="false">
-        <i class="bi bi-funnel me-1"></i><span id="dash-sub-label">세부 분류</span>
-      </button>
-      <ul class="dropdown-menu shadow-sm" id="dash-sub-menu" style="min-width:180px"></ul>
-    </div>
+          <!-- 주 분류 버튼 그룹 -->
+          <div class="btn-group shadow-sm" id="dash-cat-tabs" role="group">
+            <button type="button" class="btn btn-primary dash-cat-btn px-5" style="padding-top:1.1rem;padding-bottom:1.1rem" data-cat="all">
+              <i class="bi bi-grid-fill d-block mb-2" style="font-size:1.8rem"></i>
+              <span class="fw-semibold" style="font-size:0.95rem">전체</span>
+            </button>
+            <button type="button" class="btn btn-outline-primary dash-cat-btn px-5" style="padding-top:1.1rem;padding-bottom:1.1rem" data-cat="기구물">
+              <i class="bi bi-box-seam d-block mb-2" style="font-size:1.8rem"></i>
+              <span class="fw-semibold" style="font-size:0.95rem">기구물</span>
+            </button>
+            <button type="button" class="btn btn-outline-primary dash-cat-btn px-5" style="padding-top:1.1rem;padding-bottom:1.1rem" data-cat="수동소자">
+              <i class="bi bi-cpu d-block mb-2" style="font-size:1.8rem"></i>
+              <span class="fw-semibold" style="font-size:0.95rem">수동소자</span>
+            </button>
+          </div>
 
-    <span class="badge bg-light text-secondary border ms-auto px-3 py-2 fs-6" id="dash-filter-badge">
-      전체
-    </span>
-  </div>
+          <!-- 세부 분류 드롭다운 -->
+          <div class="dropdown" id="dash-sub-wrap">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle px-5 h-100" style="padding-top:1.1rem;padding-bottom:1.1rem"
+                    id="dash-sub-btn" data-bs-toggle="dropdown" aria-expanded="false" disabled>
+              <i class="bi bi-funnel d-block mb-2" style="font-size:1.8rem"></i>
+              <span style="font-size:0.95rem" id="dash-sub-label">세부 분류</span>
+            </button>
+            <ul class="dropdown-menu shadow" id="dash-sub-menu" style="min-width:210px"></ul>
+          </div>
 
-  <!-- 통계 카드 -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-3">
-      <div class="stat-card" style="background:linear-gradient(135deg,#4299e1,#3182ce)">
-        <div class="stat-value" id="stat-products">-</div>
-        <div class="stat-label">제품 수</div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="stat-card" style="background:linear-gradient(135deg,#48bb78,#38a169)">
-        <div class="stat-value" id="stat-groups">-</div>
-        <div class="stat-label">제품군 수</div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="stat-card" style="background:linear-gradient(135deg,#ed8936,#dd6b20)">
-        <div class="stat-value" id="stat-parts">-</div>
-        <div class="stat-label">등록 부품 수</div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="stat-card" style="background:linear-gradient(135deg,#9f7aea,#805ad5)">
-        <div class="stat-value" id="stat-changes">-</div>
-        <div class="stat-label">이번 달 변경</div>
+        </div>
+
+        <!-- 현재 선택 배지 -->
+        <div class="mt-4">
+          <span class="badge rounded-pill px-4 py-2" id="dash-filter-badge"
+                style="font-size:0.85rem;background:#ebf8ff;color:#2b6cb0;border:1px solid #bee3f8">전체</span>
+        </div>
       </div>
     </div>
   </div>
@@ -902,22 +884,23 @@ function dashSelectSub(sub) {
 }
 
 function renderDashboardData() {
-  const filtered = dashFilterProducts(dashAllProducts);
-  document.getElementById('stat-products').textContent = filtered.length;
-  const groups = new Set(filtered.map(p => p.product_group));
-  document.getElementById('stat-groups').textContent = groups.size;
+  // stat 카드 제거됨 — 필터 배지만 갱신
+  dashUpdateBadge();
 }
 
 async function loadDashboard() {
   // 탭 이벤트 (최초 1회 등록)
   if (!document.getElementById('dash-cat-tabs').dataset.init) {
     document.getElementById('dash-cat-tabs').dataset.init = '1';
-    document.querySelectorAll('#dash-cat-tabs .nav-link').forEach(a => {
-      a.addEventListener('click', e => {
-        e.preventDefault();
-        document.querySelectorAll('#dash-cat-tabs .nav-link').forEach(x => x.classList.remove('active'));
-        a.classList.add('active');
-        dashState.cat = a.dataset.cat;
+    document.querySelectorAll('#dash-cat-tabs .dash-cat-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#dash-cat-tabs .dash-cat-btn').forEach(x => {
+          x.classList.remove('btn-primary');
+          x.classList.add('btn-outline-primary');
+        });
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-primary');
+        dashState.cat = btn.dataset.cat;
         dashState.sub = null;
         document.getElementById('dash-sub-label').textContent = '세부 분류';
         dashRenderSubMenu();
@@ -929,23 +912,11 @@ async function loadDashboard() {
   }
 
   try {
-    const [products, histRes, partsRes] = await Promise.all([
+    const [products, histRes] = await Promise.all([
       api('GET', '/api/products'),
       api('GET', '/api/history?limit=50'),
-      api('GET', '/api/bulk-edit/search?q='),
     ]);
     dashAllProducts = products;
-
-    renderDashboardData();
-    document.getElementById('stat-parts').textContent = partsRes.length || 0;
-
-    const now = new Date();
-    const monthChanges = (histRes.items || []).filter(h => {
-      const d = new Date(h.timestamp);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }).length;
-    document.getElementById('stat-changes').textContent = monthChanges;
-
     window._dashHistory = histRes.items || [];
     dashRenderSubMenu();
     dashUpdateBadge();
