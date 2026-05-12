@@ -9,6 +9,10 @@ const { spawnSync } = require('child_process');
 const { db, getOrCreatePart, getBOMItems } = require('./db');
 const { parseExcelBOM, exportBOMToExcel, exportComparisonToExcel } = require('./services/excel');
 const { generateNotificationEmail, suggestCommonParts } = require('./services/ai');
+const { seedFromExcel } = require('./seed');
+
+// DB가 비어있으면 번들된 Excel 파일로 자동 초기화
+seedFromExcel(db, getOrCreatePart, parseExcelBOM);
 
 const app = express();
 const PORT = 8000;
