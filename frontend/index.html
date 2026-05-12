@@ -143,6 +143,20 @@ body { background: #f4f6f9; font-size: 0.875rem; }
     </div>
   </div>
 
+  <!-- 세부분류 선택 시 나타나는 제품 목록 -->
+  <div class="card mb-4" id="dash-product-panel" style="display:none">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span id="dash-product-panel-title"><i class="bi bi-list-ul me-1"></i>제품 목록</span>
+      <span class="badge bg-secondary" id="dash-product-count">0</span>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover table-sm mb-0">
+        <thead><tr><th>품번</th><th>품명</th><th>제품군</th></tr></thead>
+        <tbody id="dash-product-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- 최근 변경 이력 -->
   <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
@@ -848,6 +862,36 @@ function dashSelectSub(sub) {
   dashUpdateBadge();
   dashRenderSubMenu();
   renderDashboardData();
+  renderDashProductList();
+}
+
+function renderDashProductList() {
+  const panel = document.getElementById('dash-product-panel');
+  if (!dashState.sub) { panel.style.display = 'none'; return; }
+  const filtered = dashFilterProducts(dashAllProducts);
+  panel.style.display = '';
+  document.getElementById('dash-product-panel-title').innerHTML =
+    `<i class="bi bi-list-ul me-1"></i>${dashState.cat} &rsaquo; ${dashState.sub} 제품 목록`;
+  document.getElementById('dash-product-count').textContent = filtered.length;
+  document.getElementById('dash-product-tbody').innerHTML = filtered.length
+    ? filtered.map(p => `
+        <tr style="cursor:pointer" onclick="openDashProduct(${p.id})">
+          <td class="fw-semibold text-primary">${p.part_number}</td>
+          <td>${p.name}</td>
+          <td><span class="badge badge-group">${p.product_group}</span></td>
+        </tr>`).join('')
+    : '<tr><td colspan="3" class="text-center text-muted py-3">해당 분류의 제품 없음</td></tr>';
+}
+
+function openDashProduct(id) {
+  navigateTo('products');
+  // BOM 페이지 이동 후 해당 제품 열기 (loadProducts 완료 대기)
+  setTimeout(() => {
+    currentProductId = id;
+    loadBOMInlineDetail(id);
+    // 목록에서 해당 제품 하이라이트
+    document.querySelectorAll('.product-list-row').forEach(r => r.classList.remove('table-active'));
+  }, 300);
 }
 
 function renderDashboardData() {
@@ -870,11 +914,11 @@ async function loadDashboard() {
         dashState.cat = btn.dataset.cat;
         dashState.sub = null;
         document.getElementById('dash-sub-label').textContent = '세부 분류';
+        document.getElementById('dash-product-panel').style.display = 'none';
         dashRenderSubMenu();
         dashUpdateBadge();
         renderDashboardData();
         renderDashHistory();
-        navigateTo('products');
       });
     });
   }

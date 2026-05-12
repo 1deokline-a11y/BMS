@@ -4,16 +4,12 @@ const fs = require('fs');
 
 async function seedFromExcel(getOrCreatePart, parseExcelBOM, supabase) {
   try {
-    const { count } = await supabase
-      .from('products')
-      .select('*', { count: 'exact', head: true });
-    if (count > 0) return;
-
     const excelDir = path.join(__dirname, '..', 'A11-D1-0000');
     if (!fs.existsSync(excelDir)) return;
 
-    const files = fs.readdirSync(excelDir).filter(f => f.endsWith('.xlsx'));
-    console.log(`[seed] ${files.length}개 파일 배치 임포트 시작...`);
+    const files = fs.readdirSync(excelDir).filter(f => f.endsWith('.xlsx') && !f.startsWith('~$'));
+    if (!files.length) return;
+    console.log(`[seed] ${files.length}개 파일 확인 중...`);
 
     // 1단계: 모든 파일 파싱
     const allParsed = [];
@@ -26,10 +22,21 @@ async function seedFromExcel(getOrCreatePart, parseExcelBOM, supabase) {
       }
     }
 
-    // 2단계: 제품 배치 INSERT
+    // 2단계: 이미 존재하는 품번 조회
+    const { data: existing } = await supabase.from('products').select('part_number');
+    const existingSet = new Set((existing || []).map(r => r.part_number));
+    const toInsert = allParsed.filter(p => !existingSet.has(p.meta.part_number));
+
+    if (!toInsert.length) {
+      console.log('[seed] 신규 제품 없음 - 스킵');
+      return;
+    }
+    console.log(`[seed] 신규 ${toInsert.length}개 제품 임포트 시작...`);
+
+    // 2단계: 신규 제품 배치 INSERT
     const { data: products, error: prodErr } = await supabase
       .from('products')
-      .insert(allParsed.map(p => ({
+      .insert(toInsert.map(p => ({
         part_number:   p.meta.part_number,
         product_group: p.meta.product_group,
         variant_code:  p.meta.variant_code,
@@ -44,7 +51,7 @@ async function seedFromExcel(getOrCreatePart, parseExcelBOM, supabase) {
 
     // 3단계: 고유 부품 배치 UPSERT
     const uniqueParts = new Map();
-    for (const { bom_items } of allParsed) {
+    for (const { bom_items } of toInsert) {
       for (const item of bom_items) {
         if (!uniqueParts.has(item.part_number)) {
           uniqueParts.set(item.part_number, {
@@ -69,7 +76,7 @@ async function seedFromExcel(getOrCreatePart, parseExcelBOM, supabase) {
 
     // 4단계: BOM 항목 배치 INSERT (500개씩 청크)
     const bomRows = [];
-    for (const { meta, bom_items } of allParsed) {
+    for (const { meta, bom_items } of toInsert) {
       const productId = productIdMap.get(meta.part_number);
       if (!productId) continue;
       bom_items.forEach((item, i) => {
