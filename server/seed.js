@@ -22,21 +22,10 @@ async function seedFromExcel(getOrCreatePart, parseExcelBOM, supabase) {
       }
     }
 
-    // 2단계: 이미 존재하는 품번 조회
-    const { data: existing } = await supabase.from('products').select('part_number');
-    const existingSet = new Set((existing || []).map(r => r.part_number));
-    const toInsert = allParsed.filter(p => !existingSet.has(p.meta.part_number));
-
-    if (!toInsert.length) {
-      console.log('[seed] 신규 제품 없음 - 스킵');
-      return;
-    }
-    console.log(`[seed] 신규 ${toInsert.length}개 제품 임포트 시작...`);
-
-    // 2단계: 신규 제품 배치 INSERT
+    // 2단계: 제품 upsert (신규/기존 모두 최신 데이터로 유지)
     const { data: products, error: prodErr } = await supabase
       .from('products')
-      .insert(toInsert.map(p => ({
+      .upsert(allParsed.map(p => ({
         part_number:   p.meta.part_number,
         product_group: p.meta.product_group,
         variant_code:  p.meta.variant_code,
@@ -45,9 +34,16 @@ async function seedFromExcel(getOrCreatePart, parseExcelBOM, supabase) {
         country_spec:  p.meta.country_spec  || '',
         spec:          p.meta.spec          || '',
         notes:         '',
-      })))
+      })), { onConflict: 'part_number' })
       .select();
     if (prodErr) throw prodErr;
+
+    // 기존 BOM 항목 전체 삭제 후 재삽입 (Excel이 항상 원본)
+    const productIds = products.map(p => p.id);
+    for (const pid of productIds) {
+      await supabase.from('bom_items').delete().eq('product_id', pid);
+    }
+    const toInsert = allParsed;
 
     // 3단계: 고유 부품 배치 UPSERT
     const uniqueParts = new Map();

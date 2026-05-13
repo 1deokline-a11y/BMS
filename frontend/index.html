@@ -362,26 +362,29 @@ body { background: #f4f6f9; font-size: 0.875rem; }
     </div>
   </div>
 
-  <!-- 범례 -->
-  <div class="mb-3 d-flex align-items-center gap-4">
-    <span class="d-flex align-items-center gap-1">
-      <span class="legend-dot" style="background:var(--color-common);border:1px solid #9ed89e"></span>
-      <small>공통부품</small>
-    </span>
-    <span class="d-flex align-items-center gap-1">
-      <span class="legend-dot" style="background:var(--color-individual);border:1px solid #f0a0a0"></span>
-      <small>개별부품</small>
-    </span>
-    <span class="d-flex align-items-center gap-1">
-      <span class="legend-dot" style="background:var(--color-qty);border:1px solid #ffe08a"></span>
-      <small>수량차이</small>
-    </span>
+  <!-- 색상 토글 버튼 -->
+  <div class="mb-3 d-flex align-items-center gap-2">
+    <small class="text-muted me-1">색상 표시:</small>
+    <button class="btn btn-sm active" id="toggle-common"
+            style="background:var(--color-common);border:1px solid #9ed89e;min-width:80px"
+            onclick="toggleCompareColor('common')">공통부품</button>
+    <button class="btn btn-sm active" id="toggle-individual"
+            style="background:var(--color-individual);border:1px solid #f0a0a0;min-width:80px"
+            onclick="toggleCompareColor('individual')">개별부품</button>
+    <button class="btn btn-sm active" id="toggle-qty"
+            style="background:var(--color-qty);border:1px solid #ffe08a;min-width:80px"
+            onclick="toggleCompareColor('qty')">수량차이</button>
   </div>
 
   <div id="compare-summary" class="mb-3"></div>
   <div class="card">
     <div class="card-body p-0" style="overflow-x:auto">
-      <table class="table table-sm mb-0 table-bordered" id="compare-table" style="min-width:960px">
+      <table class="table table-sm mb-0 table-bordered" id="compare-table"
+             style="min-width:960px;table-layout:fixed;width:100%">
+        <colgroup>
+          <col style="width:13%"><col style="width:12%"><col style="width:9%"><col style="width:5%"><col style="width:5%"><col style="width:6%">
+          <col style="width:13%"><col style="width:12%"><col style="width:9%"><col style="width:5%"><col style="width:5%"><col style="width:6%">
+        </colgroup>
         <thead>
           <tr id="compare-header">
             <th colspan="6" class="text-center fw-bold" id="compare-h1" style="background:#eef4ff">BOM 1</th>
@@ -1149,7 +1152,38 @@ async function runCompare() {
   }
 }
 
+let _compareResult = null;
+const compareColorActive = { common: true, individual: true, qty: true };
+
+function toggleCompareColor(type) {
+  compareColorActive[type] = !compareColorActive[type];
+  const btn = document.getElementById(`toggle-${type}`);
+  if (compareColorActive[type]) {
+    btn.classList.add('active');
+    btn.style.opacity = '1';
+  } else {
+    btn.classList.remove('active');
+    btn.style.opacity = '0.4';
+  }
+  if (_compareResult) applyCompareColors();
+}
+
+function applyCompareColors() {
+  document.querySelectorAll('#compare-body tr[data-status]').forEach(tr => {
+    const status = tr.dataset.status;
+    let color = '';
+    if ((status === 'same' || status === 'spec_diff') && compareColorActive.common)
+      color = 'var(--color-common)';
+    else if ((status === 'added' || status === 'removed') && compareColorActive.individual)
+      color = 'var(--color-individual)';
+    else if (status === 'qty_diff' && compareColorActive.qty)
+      color = 'var(--color-qty)';
+    tr.style.background = color;
+  });
+}
+
 function renderCompareResult(result) {
+  _compareResult = result;
   document.getElementById('compare-h1').textContent = result.product1.part_number;
   document.getElementById('compare-h2').textContent = result.product2.part_number;
   const s = result.summary;
@@ -1164,27 +1198,19 @@ function renderCompareResult(result) {
     </div>`;
 
   document.getElementById('compare-body').innerHTML = result.diffs.map(d => {
-    let rowStyle = '';
-    if (d.status === 'same' || d.status === 'spec_diff') rowStyle = `background:var(--color-common)`;
-    else if (d.status === 'added' || d.status === 'removed') rowStyle = `background:var(--color-individual)`;
-    else if (d.status === 'qty_diff') rowStyle = `background:var(--color-qty)`;
     const i1 = d.item1 || {};
     const i2 = d.item2 || {};
-    return `<tr style="${rowStyle}">
-      <td>${i1.part_number||''}</td>
-      <td>${i1.part_name||''}</td>
-      <td>${i1.spec||''}</td>
-      <td>${i1.unit||''}</td>
-      <td>${i1.quantity||''}</td>
-      <td>${i1.notes||''}</td>
-      <td>${i2.part_number||''}</td>
-      <td>${i2.part_name||''}</td>
-      <td>${i2.spec||''}</td>
-      <td>${i2.unit||''}</td>
-      <td>${i2.quantity||''}</td>
-      <td>${i2.notes||''}</td>
+    return `<tr data-status="${d.status}">
+      <td>${i1.part_number||''}</td><td>${i1.part_name||''}</td>
+      <td>${i1.spec||''}</td><td>${i1.unit||''}</td>
+      <td>${i1.quantity||''}</td><td>${i1.notes||''}</td>
+      <td>${i2.part_number||''}</td><td>${i2.part_name||''}</td>
+      <td>${i2.spec||''}</td><td>${i2.unit||''}</td>
+      <td>${i2.quantity||''}</td><td>${i2.notes||''}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="12" class="text-center text-muted">데이터 없음</td></tr>';
+
+  applyCompareColors();
 }
 
 function exportCompare() {
