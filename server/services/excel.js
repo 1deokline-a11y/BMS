@@ -70,7 +70,22 @@ function parseExcelBOM(filePath) {
 
   const bomItems = [];
   const SKIP = new Set(['', '-', 'N/A', 'n/a', null, undefined]);
-  const TOTAL_KEYWORDS = /^(합\s*계|소\s*계|total|subtotal)$/i;
+  const TOTAL_RE = /^(합\s*계|소\s*계|total|subtotal)$/i;
+  const DATE_RE  = /^(날\s*짜|작성일|일자|date)$/i;
+
+  function cellToDateString(val) {
+    if (!val && val !== 0) return '';
+    if (val instanceof Date) return val.toISOString().slice(0, 10);
+    const s = String(val).trim();
+    if (/\d{4}[-./]\d{1,2}[-./]\d{1,2}/.test(s)) return s;
+    if (/\d{2}[-./]\d{1,2}[-./]\d{2,4}/.test(s)) return s;
+    const n = Number(s);
+    if (!isNaN(n) && n > 40000) { // Excel serial date
+      const d = XLSX.SSF.parse_date_code(n);
+      return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+    }
+    return '';
+  }
 
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i];
@@ -79,7 +94,16 @@ function parseExcelBOM(filePath) {
     if (SKIP.has(partNumber) && SKIP.has(partName)) continue;
     if (!partNumber && !partName) continue;
     // 합계/소계 행 스킵
-    if (TOTAL_KEYWORDS.test(partNumber) || TOTAL_KEYWORDS.test(partName)) continue;
+    if (TOTAL_RE.test(partNumber) || TOTAL_RE.test(partName)) continue;
+    // 날짜 행: 날짜 값 추출 후 스킵
+    if (DATE_RE.test(partNumber) || DATE_RE.test(partName)) {
+      const dateVal = row.find(cell => {
+        const v = normalize(cell);
+        return v && !DATE_RE.test(v);
+      });
+      if (dateVal !== undefined) meta.bom_date = cellToDateString(dateVal) || normalize(dateVal);
+      continue;
+    }
 
     let quantity = 1;
     if ('quantity' in colMap) {
