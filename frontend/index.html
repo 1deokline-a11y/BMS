@@ -1055,12 +1055,19 @@ async function loadBOMInlineDetail(id) {
   }
 }
 
+const SKIP_ROW_RE = /^(합\s*계|소\s*계|날\s*짜|작성일|일자|total|subtotal|date)$/i;
+
 function renderBOMDetailTable() {
-  const count = currentBOMItems.length;
+  const visibleItems = currentBOMItems.filter(item => {
+    const pn = (item.part?.part_number || '').trim();
+    const pname = (item.part?.part_name || '').trim();
+    return !SKIP_ROW_RE.test(pn) && !SKIP_ROW_RE.test(pname);
+  });
+  const count = visibleItems.length;
   const el = document.getElementById('bom-item-count');
   if (el) el.textContent = count;
   const tbody = document.getElementById('bom-detail-body');
-  const itemRows = currentBOMItems.map((item, i) => {
+  const itemRows = visibleItems.map((item, i) => {
     const p = item.part || {};
     return `<tr data-idx="${i}">
       <td>${i+1}</td>
@@ -1074,7 +1081,7 @@ function renderBOMDetailTable() {
     </tr>`;
   }).join('') || '<tr><td colspan="8" class="text-center text-muted">BOM 항목 없음</td></tr>';
 
-  const totalQty = currentBOMItems.reduce((s, it) => s + (parseFloat(it.quantity) || 0), 0);
+  const totalQty = visibleItems.reduce((s, it) => s + (parseFloat(it.quantity) || 0), 0);
   const displayQty = totalQty % 1 === 0 ? totalQty : totalQty.toFixed(2);
   const totalRow = `<tr class="fw-bold" style="background:#f8f9fa;border-top:2px solid #dee2e6">
     <td colspan="5" class="text-center">합 계</td>
@@ -1213,19 +1220,40 @@ function renderCompareResult(result) {
       <span class="badge" style="background:var(--color-qty);color:#856404;border:1px solid #ffe08a">수량차이 ${s.qty_diff}</span>
     </div>`;
 
-  document.getElementById('compare-body').innerHTML = result.diffs.map(d => {
+  const visibleDiffs = result.diffs.filter(d => {
+    const pn1 = (d.item1?.part_number || '').trim();
+    const pn2 = (d.item2?.part_number || '').trim();
+    const nm1 = (d.item1?.part_name  || '').trim();
+    const nm2 = (d.item2?.part_name  || '').trim();
+    return !SKIP_ROW_RE.test(pn1) && !SKIP_ROW_RE.test(pn2)
+        && !SKIP_ROW_RE.test(nm1) && !SKIP_ROW_RE.test(nm2);
+  });
+
+  const fmtQty = v => { const n = parseFloat(v); return isNaN(n) ? '' : (n % 1 === 0 ? n : n.toFixed(2)); };
+  const total1 = visibleDiffs.reduce((s, d) => s + (parseFloat(d.item1?.quantity) || 0), 0);
+  const total2 = visibleDiffs.reduce((s, d) => s + (parseFloat(d.item2?.quantity) || 0), 0);
+
+  const diffRows = visibleDiffs.map(d => {
     const i1 = d.item1 || {};
     const i2 = d.item2 || {};
     return `<tr data-status="${d.status}">
       <td>${i1.part_number||''}</td><td>${i1.part_name||''}</td>
       <td>${i1.spec||''}</td><td>${i1.unit||''}</td>
-      <td>${i1.quantity||''}</td><td>${i1.notes||''}</td>
+      <td>${fmtQty(i1.quantity)}</td><td>${i1.notes||''}</td>
       <td>${i2.part_number||''}</td><td>${i2.part_name||''}</td>
       <td>${i2.spec||''}</td><td>${i2.unit||''}</td>
-      <td>${i2.quantity||''}</td><td>${i2.notes||''}</td>
+      <td>${fmtQty(i2.quantity)}</td><td>${i2.notes||''}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="12" class="text-center text-muted">데이터 없음</td></tr>';
 
+  const totalRow = `<tr class="fw-bold" style="background:#f8f9fa;border-top:2px solid #dee2e6">
+    <td colspan="4" class="text-center">합 계</td>
+    <td>${fmtQty(total1)}</td><td></td>
+    <td colspan="4" class="text-center">합 계</td>
+    <td>${fmtQty(total2)}</td><td></td>
+  </tr>`;
+
+  document.getElementById('compare-body').innerHTML = diffRows + totalRow;
   applyCompareColors();
 }
 
