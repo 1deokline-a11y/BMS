@@ -1075,17 +1075,13 @@ function renderBOMDetailTable() {
   }).join('') || '<tr><td colspan="8" class="text-center text-muted">BOM 항목 없음</td></tr>';
 
   const totalQty = currentBOMItems.reduce((s, it) => s + (parseFloat(it.quantity) || 0), 0);
+  const displayQty = totalQty % 1 === 0 ? totalQty : totalQty.toFixed(2);
   const totalRow = `<tr class="fw-bold" style="background:#f8f9fa;border-top:2px solid #dee2e6">
     <td colspan="5" class="text-center">합 계</td>
-    <td>${totalQty % 1 === 0 ? totalQty : totalQty.toFixed(2)}</td>
+    <td>${displayQty}</td>
     <td colspan="2"></td>
   </tr>`;
-  const bomDate = currentProduct?.notes || '';
-  const dateRow = `<tr style="background:#f8f9fa">
-    <td colspan="3" class="text-center">날 짜</td>
-    <td colspan="5">${bomDate}</td>
-  </tr>`;
-  tbody.innerHTML = itemRows + totalRow + dateRow;
+  tbody.innerHTML = itemRows + totalRow;
 }
 
 function updateBOMItem(idx, field, value) {

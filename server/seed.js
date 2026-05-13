@@ -33,7 +33,7 @@ async function seedFromExcel(getOrCreatePart, parseExcelBOM, supabase) {
         customer:      p.meta.customer      || '',
         country_spec:  p.meta.country_spec  || '',
         spec:          p.meta.spec          || '',
-        notes:         p.meta.bom_date || '',
+        notes:         '',
       })), { onConflict: 'part_number' })
       .select();
     if (prodErr) throw prodErr;
