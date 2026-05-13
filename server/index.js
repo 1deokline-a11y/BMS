@@ -249,7 +249,12 @@ app.get('/api/products/:id/export', async (req, res) => {
 // COMPARE
 // ======================================================
 const META_ROW_RE = /^(합\s*계|소\s*계|날\s*짜|작성일|일자|total|subtotal|date)$/i;
-const isMetaRow = it => META_ROW_RE.test(it.part.part_number || '') || META_ROW_RE.test(it.part.part_name || '');
+const DATE_LIKE_RE = /^\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}/;
+const isMetaRow = it => {
+  const pn = it.part.part_number || '';
+  const nm = it.part.part_name || '';
+  return META_ROW_RE.test(pn) || META_ROW_RE.test(nm) || DATE_LIKE_RE.test(pn) || DATE_LIKE_RE.test(nm);
+};
 
 async function buildCompareResult(id1, id2) {
   const [{ data: p1 }, { data: p2 }] = await Promise.all([

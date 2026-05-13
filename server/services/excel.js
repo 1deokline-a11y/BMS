@@ -70,7 +70,8 @@ function parseExcelBOM(filePath) {
 
   const bomItems = [];
   const SKIP = new Set(['', '-', 'N/A', 'n/a', null, undefined]);
-  const TOTAL_RE = /^(합\s*계|소\s*계|날\s*짜|작성일|일자|total|subtotal|date)$/i;
+  const TOTAL_RE   = /^(합\s*계|소\s*계|날\s*짜|작성일|일자|total|subtotal|date)$/i;
+  const DATE_RE    = /^\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}/;
 
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i];
@@ -78,8 +79,9 @@ function parseExcelBOM(filePath) {
     const partName = normalize(row[colMap.part_name]);
     if (SKIP.has(partNumber) && SKIP.has(partName)) continue;
     if (!partNumber && !partName) continue;
-    // 합계/소계/날짜 행 스킵
+    // 합계/소계/날짜 키워드 또는 날짜 형식 값인 행 스킵
     if (TOTAL_RE.test(partNumber) || TOTAL_RE.test(partName)) continue;
+    if (DATE_RE.test(partNumber) || DATE_RE.test(partName)) continue;
 
     let quantity = 1;
     if ('quantity' in colMap) {

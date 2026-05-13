@@ -1056,12 +1056,14 @@ async function loadBOMInlineDetail(id) {
 }
 
 const SKIP_ROW_RE = /^(합\s*계|소\s*계|날\s*짜|작성일|일자|total|subtotal|date)$/i;
+const DATE_LIKE_RE = /^\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}/;
+function isMetaCell(v) { return SKIP_ROW_RE.test(v) || DATE_LIKE_RE.test(v); }
 
 function renderBOMDetailTable() {
   const visibleItems = currentBOMItems.filter(item => {
     const pn = (item.part?.part_number || '').trim();
     const pname = (item.part?.part_name || '').trim();
-    return !SKIP_ROW_RE.test(pn) && !SKIP_ROW_RE.test(pname);
+    return !isMetaCell(pn) && !isMetaCell(pname);
   });
   const count = visibleItems.length;
   const el = document.getElementById('bom-item-count');
@@ -1225,8 +1227,8 @@ function renderCompareResult(result) {
     const pn2 = (d.item2?.part_number || '').trim();
     const nm1 = (d.item1?.part_name  || '').trim();
     const nm2 = (d.item2?.part_name  || '').trim();
-    return !SKIP_ROW_RE.test(pn1) && !SKIP_ROW_RE.test(pn2)
-        && !SKIP_ROW_RE.test(nm1) && !SKIP_ROW_RE.test(nm2);
+    return !isMetaCell(pn1) && !isMetaCell(pn2)
+        && !isMetaCell(nm1) && !isMetaCell(nm2);
   });
 
   const fmtQty = v => { const n = parseFloat(v); return isNaN(n) ? '' : (n % 1 === 0 ? n : n.toFixed(2)); };
