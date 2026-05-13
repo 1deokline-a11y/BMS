@@ -1,23 +1,12 @@
 'use strict';
 const { createClient } = require('@supabase/supabase-js');
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://oysheraasexnsvazqfkj.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95c2hlcmFhc2V4bnN2YXpxZmtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MTM4ODMsImV4cCI6MjA5NDA4OTg4M30.polGIOVJqg0nAgiKFn-BEXg6x2OOQKAamanSO8gPSkY';
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error('[db] 경고: SUPABASE_URL 또는 SUPABASE_ANON_KEY 환경변수가 없습니다. Vercel 환경변수를 확인하세요.');
-}
-
-const supabase = createClient(
-  SUPABASE_URL || 'https://placeholder.supabase.co',
-  SUPABASE_ANON_KEY || 'placeholder-key-not-set',
-  { auth: { persistSession: false } }
-);
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
 
 async function initDB() {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error('SUPABASE_URL 및 SUPABASE_ANON_KEY 환경변수를 Vercel에 설정해주세요');
-  }
   const { error } = await supabase.from('products').select('id').limit(1);
   if (error) throw new Error(`Supabase 연결 오류: ${error.message}`);
   console.log('[db] Supabase 연결 성공');
