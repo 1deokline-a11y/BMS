@@ -1171,14 +1171,21 @@ function toggleCompareColor(type) {
 function applyCompareColors() {
   document.querySelectorAll('#compare-body tr[data-status]').forEach(tr => {
     const status = tr.dataset.status;
-    let color = '';
-    if ((status === 'same' || status === 'spec_diff') && compareColorActive.common)
-      color = '#d4f1d4';
-    else if ((status === 'added' || status === 'removed') && compareColorActive.individual)
-      color = '#ffd4d4';
-    else if (status === 'qty_diff' && compareColorActive.qty)
-      color = '#fff3cd';
-    tr.querySelectorAll('td').forEach(td => { td.style.backgroundColor = color; });
+    const tds = tr.querySelectorAll('td');
+    // 초기화
+    tds.forEach(td => { td.style.backgroundColor = ''; });
+
+    if ((status === 'same' || status === 'spec_diff') && compareColorActive.common) {
+      tds.forEach(td => { td.style.backgroundColor = '#d4f1d4'; });
+    } else if (status === 'removed' && compareColorActive.individual) {
+      // BOM1에만 있는 부품: BOM1 쪽(앞 6열)만 색칠
+      for (let i = 0; i < 6 && i < tds.length; i++) tds[i].style.backgroundColor = '#ffd4d4';
+    } else if (status === 'added' && compareColorActive.individual) {
+      // BOM2에만 있는 부품: BOM2 쪽(뒤 6열)만 색칠
+      for (let i = 6; i < tds.length; i++) tds[i].style.backgroundColor = '#ffd4d4';
+    } else if (status === 'qty_diff' && compareColorActive.qty) {
+      tds.forEach(td => { td.style.backgroundColor = '#fff3cd'; });
+    }
   });
 }
 

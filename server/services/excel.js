@@ -70,6 +70,7 @@ function parseExcelBOM(filePath) {
 
   const bomItems = [];
   const SKIP = new Set(['', '-', 'N/A', 'n/a', null, undefined]);
+  const TOTAL_KEYWORDS = /^(합\s*계|소\s*계|total|subtotal)$/i;
 
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i];
@@ -77,6 +78,8 @@ function parseExcelBOM(filePath) {
     const partName = normalize(row[colMap.part_name]);
     if (SKIP.has(partNumber) && SKIP.has(partName)) continue;
     if (!partNumber && !partName) continue;
+    // 합계/소계 행 스킵
+    if (TOTAL_KEYWORDS.test(partNumber) || TOTAL_KEYWORDS.test(partName)) continue;
 
     let quantity = 1;
     if ('quantity' in colMap) {
