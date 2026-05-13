@@ -2,23 +2,34 @@
 const path = require('path');
 const fs = require('fs');
 
+function collectExcelFiles(dir) {
+  const result = [];
+  if (!fs.existsSync(dir)) return result;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      result.push(...collectExcelFiles(path.join(dir, entry.name)));
+    } else if (entry.name.endsWith('.xlsx') && !entry.name.startsWith('~$')) {
+      result.push(path.join(dir, entry.name));
+    }
+  }
+  return result;
+}
+
 async function seedFromExcel(getOrCreatePart, parseExcelBOM, supabase) {
   try {
-    const excelDir = path.join(__dirname, '..', 'A11-D1-0000');
-    if (!fs.existsSync(excelDir)) return;
-
-    const files = fs.readdirSync(excelDir).filter(f => f.endsWith('.xlsx') && !f.startsWith('~$'));
-    if (!files.length) return;
-    console.log(`[seed] ${files.length}개 파일 확인 중...`);
+    const bomRoot = path.join(__dirname, '..', 'BOM 자료');
+    const filePaths = collectExcelFiles(bomRoot);
+    if (!filePaths.length) return;
+    console.log(`[seed] ${filePaths.length}개 파일 확인 중...`);
 
     // 1단계: 모든 파일 파싱
     const allParsed = [];
-    for (const file of files) {
+    for (const filePath of filePaths) {
       try {
-        const parsed = parseExcelBOM(path.join(excelDir, file));
+        const parsed = parseExcelBOM(filePath);
         if (parsed.meta.part_number) allParsed.push(parsed);
       } catch (e) {
-        console.error(`[seed] 파싱 실패 ${file}:`, e.message);
+        console.error(`[seed] 파싱 실패 ${path.basename(filePath)}:`, e.message);
       }
     }
 
