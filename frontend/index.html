@@ -1173,12 +1173,12 @@ function applyCompareColors() {
     const status = tr.dataset.status;
     let color = '';
     if ((status === 'same' || status === 'spec_diff') && compareColorActive.common)
-      color = 'var(--color-common)';
+      color = '#d4f1d4';
     else if ((status === 'added' || status === 'removed') && compareColorActive.individual)
-      color = 'var(--color-individual)';
+      color = '#ffd4d4';
     else if (status === 'qty_diff' && compareColorActive.qty)
-      color = 'var(--color-qty)';
-    tr.style.background = color;
+      color = '#fff3cd';
+    tr.querySelectorAll('td').forEach(td => { td.style.backgroundColor = color; });
   });
 }
 
