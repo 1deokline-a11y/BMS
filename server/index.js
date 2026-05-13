@@ -248,13 +248,17 @@ app.get('/api/products/:id/export', async (req, res) => {
 // ======================================================
 // COMPARE
 // ======================================================
+const META_ROW_RE = /^(합\s*계|소\s*계|날\s*짜|작성일|일자|total|subtotal|date)$/i;
+const isMetaRow = it => META_ROW_RE.test(it.part.part_number || '') || META_ROW_RE.test(it.part.part_name || '');
+
 async function buildCompareResult(id1, id2) {
   const [{ data: p1 }, { data: p2 }] = await Promise.all([
     supabase.from('products').select('*').eq('id', id1).maybeSingle(),
     supabase.from('products').select('*').eq('id', id2).maybeSingle(),
   ]);
   if (!p1 || !p2) return null;
-  const [items1, items2] = await Promise.all([getBOMItems(p1.id), getBOMItems(p2.id)]);
+  const [raw1, raw2] = await Promise.all([getBOMItems(p1.id), getBOMItems(p2.id)]);
+  const [items1, items2] = [raw1.filter(it => !isMetaRow(it)), raw2.filter(it => !isMetaRow(it))];
   const idx1 = Object.fromEntries(items1.map(i => [i.part.part_number, i]));
   const idx2 = Object.fromEntries(items2.map(i => [i.part.part_number, i]));
   const allKeys = [...new Set([...Object.keys(idx1), ...Object.keys(idx2)])];
