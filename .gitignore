@@ -5,3 +5,5 @@ backups/
 *.db-wal
 *.db-shm
 .env
+part_mapping.json
+anonymize.js
