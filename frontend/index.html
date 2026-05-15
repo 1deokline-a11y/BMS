@@ -88,8 +88,6 @@ body { background: #f4f6f9; font-size: 0.875rem; }
     <div class="nav-section">설정</div>
     <a href="#" data-page="history"><i class="bi bi-clock-history"></i> 변경 이력</a>
     <a href="#" data-page="notification"><i class="bi bi-envelope"></i> 메일 발송</a>
-    <div class="nav-section">가져오기</div>
-    <a href="#" data-page="import"><i class="bi bi-upload"></i> 엑셀 임포트</a>
   </nav>
 </div>
 
@@ -498,7 +496,15 @@ body { background: #f4f6f9; font-size: 0.875rem; }
 
 <!-- ====== NEW BOM ====== -->
 <div class="page" id="page-new-bom">
-  <div class="page-title"><i class="bi bi-plus-circle me-2"></i>신규 BOM 생성 (F4)</div>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="page-title mb-0"><i class="bi bi-plus-circle me-2"></i>신규 BOM 생성 (F4)</div>
+    <div>
+      <input type="file" id="new-bom-import-input" accept=".xlsx" multiple style="display:none" onchange="importFromNewBOM(this)">
+      <button class="btn btn-outline-primary" onclick="document.getElementById('new-bom-import-input').click()">
+        <i class="bi bi-upload me-1"></i>엑셀 임포트
+      </button>
+    </div>
+  </div>
   <div class="card mb-3">
     <div class="card-header">제품 기본 정보</div>
     <div class="card-body">
@@ -651,50 +657,6 @@ body { background: #f4f6f9; font-size: 0.875rem; }
 </div>
 
 <!-- ====== IMPORT ====== -->
-<div class="page" id="page-import">
-  <div class="page-title"><i class="bi bi-upload me-2"></i>엑셀 임포트</div>
-  <div class="row g-3">
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-header">파일 업로드</div>
-        <div class="card-body">
-          <div class="mb-3">
-            <label class="form-label">엑셀 BOM 파일 선택 (.xlsx)</label>
-            <input type="file" class="form-control" id="import-files" multiple accept=".xlsx">
-          </div>
-          <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" id="import-overwrite">
-            <label class="form-check-label">이미 존재하는 품번 덮어쓰기</label>
-          </div>
-          <button class="btn btn-primary" onclick="importFiles()">
-            <i class="bi bi-upload me-1"></i>임포트 실행
-          </button>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-header">폴더 전체 임포트</div>
-        <div class="card-body">
-          <p class="text-muted small">서버 로컬 폴더의 모든 엑셀 파일을 한 번에 임포트합니다.</p>
-          <div class="mb-3">
-            <label class="form-label">폴더 경로</label>
-            <input type="text" class="form-control" id="import-folder-path"
-              placeholder="C:\Users\user\Desktop\claude AI-BOM Management System\A11-D1-0000">
-          </div>
-          <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" id="folder-overwrite">
-            <label class="form-check-label">이미 존재하는 품번 덮어쓰기</label>
-          </div>
-          <button class="btn btn-warning" onclick="scanFolder()">
-            <i class="bi bi-folder2-open me-1"></i>폴더 스캔 및 임포트
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div id="import-results" class="mt-3"></div>
-</div>
 
 </div><!-- end main-content -->
 
@@ -1656,14 +1618,28 @@ async function sendEmail() {
 }
 
 // ===================== Import =====================
-async function importFiles() {
-  const files = document.getElementById('import-files').files;
-  if (!files.length) { toast('파일을 선택해주세요', 'warning'); return; }
-  const overwrite = document.getElementById('import-overwrite').checked;
+async function importFromNewBOM(input) {
+  const files = input.files;
+  if (!files.length) return;
   const formData = new FormData();
   for (const file of files) formData.append('files', file);
   try {
-    document.getElementById('import-results').innerHTML = '<div class="alert alert-info">임포트 중...</div>';
+    toast('임포트 중...', 'info');
+    const result = await apiForm('/api/import/excel?overwrite=true', formData);
+    input.value = '';
+    const ok = (result.results || []).filter(r => r.status === 'success').length;
+    toast(`✅ ${ok}개 파일 임포트 완료`, 'success');
+    await loadProducts();
+  } catch (e) { toast('임포트 실패: ' + e.message, 'danger'); }
+}
+
+async function importFiles() {
+  const files = document.getElementById('import-files')?.files;
+  if (!files || !files.length) { toast('파일을 선택해주세요', 'warning'); return; }
+  const overwrite = document.getElementById('import-overwrite')?.checked;
+  const formData = new FormData();
+  for (const file of files) formData.append('files', file);
+  try {
     const result = await apiForm(`/api/import/excel?overwrite=${overwrite}`, formData);
     renderImportResults(result.results);
   } catch (e) { toast('임포트 실패: ' + e.message, 'danger'); }
