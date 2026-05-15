@@ -1525,14 +1525,19 @@ function renderChangesHtml(changes) {
   if (!changes || !Object.keys(changes).length) return '<p class="text-muted mb-0">변경 내용 없음</p>';
   const actionLabel = { deleted: '삭제', qty_updated: '수량 변경', replaced: '부품 교체', added: '추가' };
   const actionBadge = { deleted: 'danger', qty_updated: 'warning', replaced: 'primary', added: 'success' };
+  const partStr = (pn, name) => `<strong>${pn}</strong>${name ? ` <span class="text-muted">(${name})</span>` : ''}`;
   return Object.entries(changes).map(([pn, acts]) => {
     const rows = (acts || []).map(a => {
       const badge = `<span class="badge bg-${actionBadge[a.action]||'secondary'} me-2">${actionLabel[a.action]||a.action}</span>`;
       let desc = '';
-      if (a.action === 'deleted')     desc = `부품 <strong>${a.part}</strong> 삭제`;
-      else if (a.action === 'added')  desc = `부품 <strong>${a.part}</strong> 추가`;
-      else if (a.action === 'qty_updated') desc = `수량 <strong>${a.before}</strong> → <strong>${a.after}</strong>`;
-      else if (a.action === 'replaced')    desc = `<strong>${a.before}</strong> → <strong>${a.after}</strong> 으로 교체`;
+      if (a.action === 'deleted')
+        desc = `${partStr(a.part, a.part_name)} 삭제`;
+      else if (a.action === 'added')
+        desc = `${partStr(a.part, a.part_name)} 추가`;
+      else if (a.action === 'qty_updated')
+        desc = `${partStr(a.part, a.part_name)} 수량 <strong>${a.before}</strong> → <strong>${a.after}</strong>`;
+      else if (a.action === 'replaced')
+        desc = `${partStr(a.before, a.before_name)} → ${partStr(a.after, a.after_name)} 으로 교체`;
       else desc = JSON.stringify(a);
       return `<li class="list-group-item py-1 px-2">${badge}${desc}</li>`;
     }).join('');

@@ -398,17 +398,17 @@ app.post('/api/bulk-edit/apply', async (req, res) => {
       for (const item of items.filter(it => it.part.part_number === target_part_number)) {
         if (action === 'delete') {
           await supabase.from('bom_items').delete().eq('id', item.id);
-          productChanges.push({ action: 'deleted', part: item.part.part_number });
+          productChanges.push({ action: 'deleted', part: item.part.part_number, part_name: item.part.part_name });
         } else if (action === 'update_qty') {
           await supabase.from('bom_items').update({ quantity: new_quantity }).eq('id', item.id);
-          productChanges.push({ action: 'qty_updated', before: item.quantity, after: new_quantity });
+          productChanges.push({ action: 'qty_updated', part: item.part.part_number, part_name: item.part.part_name, before: item.quantity, after: new_quantity });
         } else if (action === 'replace') {
           const newPart = await getOrCreatePart(new_part_number, new_part_name || '', new_spec || '', new_unit || 'EA');
           await supabase.from('bom_items').update({
             part_id: newPart.id,
             ...(new_quantity != null ? { quantity: new_quantity } : {}),
           }).eq('id', item.id);
-          productChanges.push({ action: 'replaced', before: item.part.part_number, after: new_part_number });
+          productChanges.push({ action: 'replaced', before: item.part.part_number, before_name: item.part.part_name, after: new_part_number, after_name: new_part_name || '' });
         }
       }
 
@@ -418,7 +418,7 @@ app.post('/api/bulk-edit/apply', async (req, res) => {
         await supabase.from('bom_items').insert({
           product_id: pid, part_id: newPart.id, quantity: new_quantity || 1, row_order: maxOrder,
         });
-        productChanges.push({ action: 'added', part: new_part_number });
+        productChanges.push({ action: 'added', part: new_part_number, part_name: new_part_name || '' });
       }
 
       if (productChanges.length > 0) {
