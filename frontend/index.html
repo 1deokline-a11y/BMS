@@ -208,9 +208,17 @@ body { background: #f4f6f9; font-size: 0.875rem; }
   <div class="card mb-3">
     <div class="card-body p-0">
       <table class="table table-hover table-sm mb-0">
-        <thead><tr><th>품번</th><th>품명</th><th>제품군</th></tr></thead>
+        <thead><tr>
+          <th width="36"><input type="checkbox" id="check-all-products" onchange="toggleAllProductChecks(this.checked)" title="전체 선택"></th>
+          <th>품번</th><th>품명</th><th>제품군</th>
+        </tr></thead>
         <tbody id="product-list"></tbody>
       </table>
+    </div>
+    <div class="card-footer d-flex justify-content-end py-2">
+      <button class="btn btn-danger btn-sm" onclick="deleteCheckedProducts()">
+        <i class="bi bi-trash me-1"></i>선택 삭제
+      </button>
     </div>
   </div>
 
@@ -952,12 +960,43 @@ async function loadProducts() {
 }
 
 function renderProductList(products) {
+  const el = document.getElementById('check-all-products');
+  if (el) el.checked = false;
   document.getElementById('product-list').innerHTML = products.map(p => `
-    <tr style="cursor:pointer" onclick="openBOM(${p.id})" class="product-list-row">
-      <td class="fw-semibold text-primary">${p.part_number}</td>
-      <td>${p.name}</td>
-      <td><span class="badge badge-group">${p.product_group}</span></td>
-    </tr>`).join('') || '<tr><td colspan="3" class="text-center text-muted py-3">검색 결과 없음</td></tr>';
+    <tr class="product-list-row" data-id="${p.id}" data-pn="${p.part_number}">
+      <td onclick="event.stopPropagation()">
+        <input type="checkbox" class="product-check" value="${p.id}" onchange="syncAllProductCheck()">
+      </td>
+      <td class="fw-semibold text-primary" style="cursor:pointer" onclick="openBOM(${p.id})">${p.part_number}</td>
+      <td style="cursor:pointer" onclick="openBOM(${p.id})">${p.name}</td>
+      <td style="cursor:pointer" onclick="openBOM(${p.id})"><span class="badge badge-group">${p.product_group}</span></td>
+    </tr>`).join('') || '<tr><td colspan="4" class="text-center text-muted py-3">검색 결과 없음</td></tr>';
+}
+
+function toggleAllProductChecks(checked) {
+  document.querySelectorAll('.product-check').forEach(cb => cb.checked = checked);
+}
+
+function syncAllProductCheck() {
+  const all  = document.querySelectorAll('.product-check');
+  const done = document.querySelectorAll('.product-check:checked');
+  const el = document.getElementById('check-all-products');
+  if (el) el.checked = all.length > 0 && done.length === all.length;
+}
+
+async function deleteCheckedProducts() {
+  const checked = [...document.querySelectorAll('.product-check:checked')];
+  if (!checked.length) { toast('삭제할 제품을 선택해주세요', 'warning'); return; }
+  const ids = checked.map(cb => cb.value);
+  const rows = checked.map(cb => cb.closest('tr'));
+  const pns  = rows.map(r => r.dataset.pn).join(', ');
+  if (!confirm(`선택한 ${ids.length}개 제품을 삭제하시겠습니까?\n\n${pns}`)) return;
+  try {
+    await Promise.all(ids.map(id => api('DELETE', `/api/products/${id}`)));
+    toast(`${ids.length}개 제품 삭제 완료`, 'success');
+    document.getElementById('bom-inline-detail').style.display = 'none';
+    loadProducts();
+  } catch (e) { toast('삭제 실패: ' + e.message, 'danger'); }
 }
 
 async function deleteProduct(id, pn) {
