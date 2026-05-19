@@ -70,6 +70,31 @@ body { background: #f4f6f9; font-size: 0.875rem; }
 .loading-spinner.show { display: inline-block; }
 #toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; }
 .toast { min-width: 280px; }
+
+/* ===== 모바일 모드 ===== */
+#mobile-nav { display: none; }
+body.mobile-mode #sidebar { display: none !important; }
+body.mobile-mode #main-content { margin-left: 0 !important; padding: 0.75rem 0.5rem 5rem !important; }
+body.mobile-mode #mobile-nav {
+  display: flex !important; position: fixed; bottom: 0; left: 0; right: 0;
+  background: #1e2a3a; z-index: 200; border-top: 1px solid #2d3f55;
+}
+body.mobile-mode #mobile-nav a {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 0.45rem 0.2rem; color: #a0aec0; text-decoration: none; font-size: 0.6rem; gap: 2px;
+}
+body.mobile-mode #mobile-nav a.active { color: #63b3ed; }
+body.mobile-mode #mobile-nav a i { font-size: 1.25rem; }
+body.mobile-mode .card-body.p-0 { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+body.mobile-mode .page-title { font-size: 1rem; }
+body.mobile-mode #dash-cat-tabs .dash-cat-btn { padding: 0.6rem 0.8rem !important; }
+body.mobile-mode #dash-cat-tabs .dash-cat-btn i { font-size: 1.2rem !important; }
+body.mobile-mode .bom-table th, body.mobile-mode .bom-table td { font-size: 0.78rem; padding: 0.35rem 0.4rem; }
+body.mobile-mode #btn-mode-pc { background: transparent; color: #a0aec0; border-color: #4a5568; }
+body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-color: #63b3ed; font-weight:600; }
+#btn-mode-pc { background: #63b3ed; color: #1e2a3a; border-color: #63b3ed; font-weight:600; }
+#btn-mode-mobile { background: transparent; color: #a0aec0; border-color: #4a5568; }
+#view-mode-toggle { background: #1e2a3a; border-radius: 10px; }
 </style>
 </head>
 <body>
@@ -90,6 +115,15 @@ body { background: #f4f6f9; font-size: 0.875rem; }
     <a href="#" data-page="notification"><i class="bi bi-envelope"></i> 메일 발송</a>
   </nav>
 </div>
+
+<!-- 모바일 하단 네비게이션 -->
+<nav id="mobile-nav">
+  <a href="#" data-page="dashboard"><i class="bi bi-speedometer2"></i>대시보드</a>
+  <a href="#" data-page="products"><i class="bi bi-file-earmark-text"></i>BOM</a>
+  <a href="#" data-page="compare"><i class="bi bi-subtract"></i>비교</a>
+  <a href="#" data-page="bulk-edit"><i class="bi bi-pencil-square"></i>수정</a>
+  <a href="#" data-page="history"><i class="bi bi-clock-history"></i>이력</a>
+</nav>
 
 <!-- Main Content -->
 <div id="main-content">
@@ -173,6 +207,19 @@ body { background: #f4f6f9; font-size: 0.875rem; }
         </thead>
         <tbody id="recent-history"></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- PC / 모바일 화면 전환 -->
+  <div id="view-mode-toggle" class="text-center mt-4 p-3">
+    <div class="text-muted mb-2" style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;font-weight:600;color:#a0aec0!important">화면 모드</div>
+    <div class="btn-group btn-group-sm">
+      <button class="btn" id="btn-mode-pc" onclick="setViewMode('pc')">
+        <i class="bi bi-monitor me-1"></i>PC
+      </button>
+      <button class="btn" id="btn-mode-mobile" onclick="setViewMode('mobile')">
+        <i class="bi bi-phone me-1"></i>모바일
+      </button>
     </div>
   </div>
 
@@ -714,11 +761,27 @@ function navigateTo(page, params = {}) {
   if (page === 'new-bom') loadGroupsForNew();
   if (page === 'import') {}
   if (page === 'bom-detail' && params.id) { currentProductId = params.id; loadBOMDetail(params.id); }
+  // 모바일 하단 네비 동기화
+  document.querySelectorAll('#mobile-nav a[data-page]').forEach(a => {
+    a.classList.toggle('active', a.dataset.page === page);
+  });
 }
 
 document.querySelectorAll('#sidebar nav a[data-page]').forEach(a => {
   a.addEventListener('click', e => { e.preventDefault(); navigateTo(a.dataset.page); });
 });
+document.querySelectorAll('#mobile-nav a[data-page]').forEach(a => {
+  a.addEventListener('click', e => { e.preventDefault(); navigateTo(a.dataset.page); });
+});
+
+function setViewMode(mode) {
+  localStorage.setItem('viewMode', mode);
+  if (mode === 'mobile') {
+    document.body.classList.add('mobile-mode');
+  } else {
+    document.body.classList.remove('mobile-mode');
+  }
+}
 
 // ===================== API helpers =====================
 async function api(method, path, body = null) {
@@ -1763,6 +1826,8 @@ function renderImportResults(results) {
 }
 
 // ===================== Init =====================
+const savedMode = localStorage.getItem('viewMode') || 'pc';
+setViewMode(savedMode);
 navigateTo('dashboard');
 </script>
 </body>
