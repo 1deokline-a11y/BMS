@@ -7,3 +7,6 @@ backups/
 .env
 part_mapping.json
 anonymize.js
+.claude/
+backend/
+수정 요청 사진/
