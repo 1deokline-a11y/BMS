@@ -87,9 +87,14 @@ body.mobile-mode #mobile-nav a.active { color: #63b3ed; }
 body.mobile-mode #mobile-nav a i { font-size: 1.25rem; }
 body.mobile-mode .card-body.p-0 { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 body.mobile-mode .page-title { font-size: 1rem; }
-body.mobile-mode #dash-cat-tabs .dash-cat-btn { padding: 0.6rem 0.8rem !important; }
+body.mobile-mode #dash-cat-tabs { display: flex !important; width: 100%; }
+body.mobile-mode #dash-cat-tabs .dash-cat-btn { padding: 0.6rem 0.4rem !important; }
 body.mobile-mode #dash-cat-tabs .dash-cat-btn i { font-size: 1.2rem !important; }
+body.mobile-mode #dash-cat-tabs .dash-cat-btn[data-cat="all"]  { flex: 3; }
+body.mobile-mode #dash-cat-tabs .dash-cat-btn[data-cat="기구물"] { flex: 4; }
+body.mobile-mode #dash-cat-tabs .dash-cat-btn[data-cat="수동소자"] { flex: 4; }
 body.mobile-mode .bom-table th, body.mobile-mode .bom-table td { font-size: 0.78rem; padding: 0.35rem 0.4rem; }
+body.mobile-mode #compare-table { min-width: 0 !important; table-layout: auto !important; }
 body.mobile-mode #btn-mode-pc { background: transparent; color: #a0aec0; border-color: #4a5568; }
 body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-color: #63b3ed; font-weight:600; }
 #btn-mode-pc { background: #63b3ed; color: #1e2a3a; border-color: #63b3ed; font-weight:600; }
@@ -781,6 +786,7 @@ function setViewMode(mode) {
   } else {
     document.body.classList.remove('mobile-mode');
   }
+  if (_compareResult) renderCompareResult(_compareResult);
 }
 
 // ===================== API helpers =====================
@@ -1257,20 +1263,17 @@ function toggleCompareColor(type) {
 }
 
 function applyCompareColors() {
+  const mid = document.body.classList.contains('mobile-mode') ? 3 : 6;
   document.querySelectorAll('#compare-body tr[data-status]').forEach(tr => {
     const status = tr.dataset.status;
     const tds = tr.querySelectorAll('td');
-    // 초기화
     tds.forEach(td => { td.style.backgroundColor = ''; });
-
     if ((status === 'same' || status === 'spec_diff') && compareColorActive.common) {
       tds.forEach(td => { td.style.backgroundColor = '#d4f1d4'; });
     } else if (status === 'removed' && compareColorActive.individual) {
-      // BOM1에만 있는 부품: BOM1 쪽(앞 6열)만 색칠
-      for (let i = 0; i < 6 && i < tds.length; i++) tds[i].style.backgroundColor = '#ffd4d4';
+      for (let i = 0; i < mid && i < tds.length; i++) tds[i].style.backgroundColor = '#ffd4d4';
     } else if (status === 'added' && compareColorActive.individual) {
-      // BOM2에만 있는 부품: BOM2 쪽(뒤 6열)만 색칠
-      for (let i = 6; i < tds.length; i++) tds[i].style.backgroundColor = '#ffd4d4';
+      for (let i = mid; i < tds.length; i++) tds[i].style.backgroundColor = '#ffd4d4';
     } else if (status === 'qty_diff' && compareColorActive.qty) {
       tds.forEach(td => { td.style.backgroundColor = '#fff3cd'; });
     }
@@ -1279,8 +1282,19 @@ function applyCompareColors() {
 
 function renderCompareResult(result) {
   _compareResult = result;
+  const isMobile = document.body.classList.contains('mobile-mode');
+
+  // 헤더 colspan 및 컬럼명 표시 조정
   document.getElementById('compare-h1').textContent = result.product1.part_number;
   document.getElementById('compare-h2').textContent = result.product2.part_number;
+  document.getElementById('compare-h1').setAttribute('colspan', isMobile ? '3' : '6');
+  document.getElementById('compare-h2').setAttribute('colspan', isMobile ? '3' : '6');
+  // 모바일: 규격명(2,8), 단위(3,9), 적요(5,11) 숨김 (0-based index)
+  const colThs = document.querySelectorAll('#compare-table thead tr:last-child th');
+  [0,1,2,3,4,5,6,7,8,9,10,11].forEach(i => {
+    if (colThs[i]) colThs[i].style.display = (isMobile && [2,3,5,8,9,11].includes(i)) ? 'none' : '';
+  });
+
   const s = result.summary;
   const common = s.same + (s.spec_diff || 0);
   const individual = s.added + s.removed;
@@ -1308,6 +1322,12 @@ function renderCompareResult(result) {
   const diffRows = visibleDiffs.map(d => {
     const i1 = d.item1 || {};
     const i2 = d.item2 || {};
+    if (isMobile) {
+      return `<tr data-status="${d.status}">
+        <td>${i1.part_number||''}</td><td>${i1.part_name||''}</td><td>${fmtQty(i1.quantity)}</td>
+        <td>${i2.part_number||''}</td><td>${i2.part_name||''}</td><td>${fmtQty(i2.quantity)}</td>
+      </tr>`;
+    }
     return `<tr data-status="${d.status}">
       <td>${i1.part_number||''}</td><td>${i1.part_name||''}</td>
       <td>${i1.spec||''}</td><td>${i1.unit||''}</td>
@@ -1316,14 +1336,19 @@ function renderCompareResult(result) {
       <td>${i2.spec||''}</td><td>${i2.unit||''}</td>
       <td>${fmtQty(i2.quantity)}</td><td>${i2.notes||''}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="12" class="text-center text-muted">데이터 없음</td></tr>';
+  }).join('') || `<tr><td colspan="${isMobile ? 6 : 12}" class="text-center text-muted">데이터 없음</td></tr>`;
 
-  const totalRow = `<tr class="fw-bold" style="background:#f8f9fa;border-top:2px solid #dee2e6">
-    <td colspan="4" class="text-center">합 계</td>
-    <td>${fmtQty(total1)}</td><td></td>
-    <td colspan="4" class="text-center">합 계</td>
-    <td>${fmtQty(total2)}</td><td></td>
-  </tr>`;
+  const totalRow = isMobile
+    ? `<tr class="fw-bold" style="background:#f8f9fa;border-top:2px solid #dee2e6">
+        <td colspan="2" class="text-center">합 계</td><td>${fmtQty(total1)}</td>
+        <td colspan="2" class="text-center">합 계</td><td>${fmtQty(total2)}</td>
+       </tr>`
+    : `<tr class="fw-bold" style="background:#f8f9fa;border-top:2px solid #dee2e6">
+        <td colspan="4" class="text-center">합 계</td>
+        <td>${fmtQty(total1)}</td><td></td>
+        <td colspan="4" class="text-center">합 계</td>
+        <td>${fmtQty(total2)}</td><td></td>
+       </tr>`;
 
   document.getElementById('compare-body').innerHTML = diffRows + totalRow;
   applyCompareColors();
