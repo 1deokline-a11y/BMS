@@ -210,7 +210,7 @@ body { background: #f4f6f9; font-size: 0.875rem; }
       <table class="table table-hover table-sm mb-0">
         <thead><tr>
           <th width="36"><input type="checkbox" id="check-all-products" onchange="toggleAllProductChecks(this.checked)" title="전체 선택"></th>
-          <th>품번</th><th>품명</th><th>제품군</th>
+          <th>품번</th><th>품명</th><th>비고</th>
         </tr></thead>
         <tbody id="product-list"></tbody>
       </table>
@@ -637,9 +637,6 @@ body { background: #f4f6f9; font-size: 0.875rem; }
         </div>
       </div>
       <div class="mt-2">
-        <button class="btn btn-info btn-sm w-100 mb-2" onclick="generateEmail()">
-          <i class="bi bi-robot me-1"></i>AI 메일 자동 생성
-        </button>
         <button class="btn btn-success btn-sm w-100" onclick="sendEmail()">
           <i class="bi bi-send me-1"></i>Outlook으로 발송
         </button>
@@ -958,6 +955,16 @@ async function loadProducts() {
   } catch (e) { toast('제품 목록 로드 실패: ' + e.message, 'danger'); }
 }
 
+function buildProductRemarks(p) {
+  const tags = [];
+  if (p.product_group) tags.push(`<span class="badge badge-group">${p.product_group}</span>`);
+  if (p.customer)      tags.push(`<span class="badge bg-light text-secondary border">${p.customer}</span>`);
+  if (p.country_spec)  tags.push(`<span class="badge bg-light text-secondary border">${p.country_spec}</span>`);
+  if (p.spec)          tags.push(`<span class="badge bg-light text-secondary border">${p.spec}</span>`);
+  if (p.notes)         tags.push(`<span class="text-muted small">${p.notes}</span>`);
+  return tags.length ? tags.join(' ') : '';
+}
+
 function renderProductList(products) {
   const el = document.getElementById('check-all-products');
   if (el) el.checked = false;
@@ -968,7 +975,7 @@ function renderProductList(products) {
       </td>
       <td class="fw-semibold text-primary" style="cursor:pointer" onclick="openBOM(${p.id})">${p.part_number}</td>
       <td style="cursor:pointer" onclick="openBOM(${p.id})">${p.name}</td>
-      <td style="cursor:pointer" onclick="openBOM(${p.id})"><span class="badge badge-group">${p.product_group}</span></td>
+      <td style="cursor:pointer" onclick="openBOM(${p.id})">${buildProductRemarks(p)}</td>
     </tr>`).join('') || '<tr><td colspan="4" class="text-center text-muted py-3">검색 결과 없음</td></tr>';
 }
 
@@ -1261,7 +1268,14 @@ function renderCompareResult(result) {
 
 function exportCompare() {
   if (!currentCompareId1 || !currentCompareId2) return;
-  window.location.href = `/api/compare/export?id1=${currentCompareId1}&id2=${currentCompareId2}`;
+  const params = new URLSearchParams({
+    id1: currentCompareId1,
+    id2: currentCompareId2,
+    colorCommon:     compareColorActive.common     ? '1' : '0',
+    colorIndividual: compareColorActive.individual ? '1' : '0',
+    colorQty:        compareColorActive.qty        ? '1' : '0',
+  });
+  window.location.href = `/api/compare/export?${params}`;
 }
 
 // ===================== Bulk Edit =====================

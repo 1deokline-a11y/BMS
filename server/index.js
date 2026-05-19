@@ -303,7 +303,12 @@ app.get('/api/compare/export', async (req, res) => {
   try {
     const result = await buildCompareResult(req.query.id1, req.query.id2);
     if (!result) return res.status(404).json({ detail: '제품을 찾을 수 없습니다' });
-    const buf = exportComparisonToExcel(result.product1.part_number, result.product2.part_number, result.diffs);
+    const colorOptions = {
+      colorCommon:     req.query.colorCommon     === '1',
+      colorIndividual: req.query.colorIndividual === '1',
+      colorQty:        req.query.colorQty        === '1',
+    };
+    const buf = await exportComparisonToExcel(result.product1.part_number, result.product2.part_number, result.diffs, colorOptions);
     const filename = encodeURIComponent(`비교_${result.product1.part_number}_vs_${result.product2.part_number}.xlsx`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${filename}`);

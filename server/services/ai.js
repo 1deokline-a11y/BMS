@@ -1,19 +1,36 @@
 'use strict';
 const { spawnSync } = require('child_process');
+const path = require('path');
+const fs = require('fs');
 
-/**
- * Claude CLI 호출 - 유료 계정 인증 사용 (별도 API 키 불필요)
- */
+function findClaudePath() {
+  const candidates = [
+    'claude',
+    path.join(process.env.APPDATA || '', 'npm', 'claude.cmd'),
+    path.join(process.env.APPDATA || '', 'npm', 'claude'),
+    path.join(process.env.LOCALAPPDATA || '', 'AnthropicClaude', 'claude.exe'),
+  ];
+  for (const c of candidates) {
+    try {
+      if (c === 'claude') return c;
+      if (fs.existsSync(c)) return c;
+    } catch {}
+  }
+  return 'claude';
+}
+
+const CLAUDE_PATH = findClaudePath();
+
 function callClaude(prompt, timeoutMs = 90000) {
   try {
-    const result = spawnSync('claude', ['-p', prompt], {
+    const result = spawnSync(CLAUDE_PATH, ['-p', prompt], {
       encoding: 'utf8',
       timeout: timeoutMs,
       windowsHide: true,
-      shell: false,
+      shell: true,
     });
     if (result.error) {
-      if (result.error.code === 'ENOENT') return '[Claude CLI를 찾을 수 없습니다. Claude Code가 설치·로그인되어 있는지 확인하세요]';
+      if (result.error.code === 'ENOENT') return '[Claude CLI를 찾을 수 없습니다. 터미널에서 npm install -g @anthropic-ai/claude-code 실행 후 claude login 해주세요]';
       if (result.error.code === 'ETIMEDOUT') return '[AI 응답 시간 초과 - 다시 시도해주세요]';
       return `[AI 오류: ${result.error.message}]`;
     }

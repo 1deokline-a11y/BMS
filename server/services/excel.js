@@ -121,31 +121,60 @@ function exportBOMToExcel(product, bomItems) {
   return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 }
 
-function exportComparisonToExcel(p1, p2, diffs) {
-  const wb = XLSX.utils.book_new();
+async function exportComparisonToExcel(p1, p2, diffs, colorOptions = {}) {
+  const ExcelJS = require('exceljs');
+  const { colorCommon = false, colorIndividual = false, colorQty = false } = colorOptions;
   const statusLabel = { added: '추가됨', removed: '삭제됨', qty_diff: '수량차이', spec_diff: '규격차이', same: '동일' };
-  const header = [
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('BOM 비교');
+
+  ws.columns = [
+    { width: 22 }, { width: 28 }, { width: 22 }, { width: 10 },
+    { width: 22 }, { width: 28 }, { width: 22 }, { width: 10 },
+    { width: 12 },
+  ];
+
+  // 제목 행
+  const titleRow = ws.addRow([`BOM 비교: ${p1} vs ${p2}`]);
+  ws.mergeCells('A1:I1');
+  titleRow.getCell(1).font = { bold: true, size: 13 };
+
+  // 헤더 행
+  const headerRow = ws.addRow([
     `[${p1}] 부품번호`, `[${p1}] 부품명`, `[${p1}] 규격`, `[${p1}] 수량`,
     `[${p2}] 부품번호`, `[${p2}] 부품명`, `[${p2}] 규격`, `[${p2}] 수량`,
     '구분',
-  ];
-  const data = [
-    [`BOM 비교: ${p1} vs ${p2}`],
-    header,
-    ...diffs.map(d => {
-      const i1 = d.item1 || {};
-      const i2 = d.item2 || {};
-      return [
-        i1.part_number || '', i1.part_name || '', i1.spec || '', i1.quantity || '',
-        i2.part_number || '', i2.part_name || '', i2.spec || '', i2.quantity || '',
-        statusLabel[d.status] || d.status,
-      ];
-    }),
-  ];
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = Array(9).fill({ wch: 22 });
-  XLSX.utils.book_append_sheet(wb, ws, 'BOM 비교');
-  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  ]);
+  headerRow.eachCell(cell => {
+    cell.font = { bold: true };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+  });
+
+  // 데이터 행
+  for (const d of diffs) {
+    const i1 = d.item1 || {};
+    const i2 = d.item2 || {};
+    const row = ws.addRow([
+      i1.part_number || '', i1.part_name || '', i1.spec || '', i1.quantity || '',
+      i2.part_number || '', i2.part_name || '', i2.spec || '', i2.quantity || '',
+      statusLabel[d.status] || d.status,
+    ]);
+
+    const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+
+    if ((d.status === 'same' || d.status === 'spec_diff') && colorCommon) {
+      row.eachCell({ includeEmpty: true }, cell => { cell.fill = fill('FFD4F1D4'); });
+    } else if (d.status === 'removed' && colorIndividual) {
+      for (let i = 1; i <= 4; i++) row.getCell(i).fill = fill('FFFFD4D4');
+    } else if (d.status === 'added' && colorIndividual) {
+      for (let i = 5; i <= 8; i++) row.getCell(i).fill = fill('FFFFD4D4');
+    } else if (d.status === 'qty_diff' && colorQty) {
+      row.eachCell({ includeEmpty: true }, cell => { cell.fill = fill('FFFFF3CD'); });
+    }
+  }
+
+  return wb.xlsx.writeBuffer();
 }
 
 module.exports = { parseExcelBOM, exportBOMToExcel, exportComparisonToExcel };
