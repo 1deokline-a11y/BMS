@@ -21,6 +21,12 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 const upload = multer({ dest: UPLOAD_DIR });
+app.use('/', (req, res, next) => {
+  if (req.path === '/' || req.path.endsWith('.html')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  }
+  next();
+});
 app.use('/', express.static(path.join(BASE_DIR, 'frontend')));
 
 const dbReady = initDB()
