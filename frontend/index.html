@@ -95,6 +95,11 @@ body.mobile-mode #dash-cat-tabs .dash-cat-btn[data-cat="기구물"] { flex: 4; }
 body.mobile-mode #dash-cat-tabs .dash-cat-btn[data-cat="수동소자"] { flex: 4; }
 body.mobile-mode .bom-table th, body.mobile-mode .bom-table td { font-size: 0.78rem; padding: 0.35rem 0.4rem; }
 body.mobile-mode #compare-table { min-width: 0 !important; table-layout: auto !important; }
+#compare-h1 { border-right: 4px solid #6c757d !important; }
+#compare-table thead tr:last-child th:nth-child(6),
+#compare-table tbody td:nth-child(6) { border-right: 4px solid #6c757d !important; }
+body.mobile-mode #compare-table thead tr:last-child th:nth-child(3),
+body.mobile-mode #compare-table tbody td:nth-child(3) { border-right: 4px solid #6c757d !important; }
 body.mobile-mode #btn-mode-pc { background: transparent; color: #a0aec0; border-color: #4a5568; }
 body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-color: #63b3ed; font-weight:600; }
 #btn-mode-pc { background: #63b3ed; color: #1e2a3a; border-color: #63b3ed; font-weight:600; min-width: 90px; }
@@ -106,7 +111,7 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 
 <!-- Sidebar -->
 <div id="sidebar">
-  <div class="brand"><i class="bi bi-diagram-3-fill"></i> BOM 관리 시스템</div>
+  <div class="brand" onclick="navigateTo('dashboard')" style="cursor:pointer"><i class="bi bi-diagram-3-fill"></i> BOM 관리 시스템</div>
   <nav>
     <div class="nav-section">메인</div>
     <a href="#" data-page="dashboard"><i class="bi bi-speedometer2"></i> 대시보드</a>
@@ -750,7 +755,7 @@ let currentCompareId2 = null;
 let selectedBulkPart = null;
 let selectedCommonGroup = null;
 
-function navigateTo(page, params = {}) {
+function navigateTo(page, params = {}, pushHistory = true) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
   const pageEl = document.getElementById(`page-${page}`);
@@ -758,6 +763,7 @@ function navigateTo(page, params = {}) {
   const navLink = document.querySelector(`[data-page="${page}"]`);
   if (navLink) navLink.classList.add('active');
   currentPage = page;
+  if (pushHistory) history.pushState({ page }, '', `#${page}`);
   if (page === 'dashboard') loadDashboard();
   if (page === 'products') loadProducts();
   if (page === 'compare') loadCompareSelects();
@@ -777,6 +783,11 @@ document.querySelectorAll('#sidebar nav a[data-page]').forEach(a => {
 });
 document.querySelectorAll('#mobile-nav a[data-page]').forEach(a => {
   a.addEventListener('click', e => { e.preventDefault(); navigateTo(a.dataset.page); });
+});
+
+window.addEventListener('popstate', e => {
+  const page = e.state?.page || 'dashboard';
+  navigateTo(page, {}, false);
 });
 
 function setViewMode(mode) {
@@ -1853,7 +1864,9 @@ function renderImportResults(results) {
 // ===================== Init =====================
 const savedMode = localStorage.getItem('viewMode') || 'pc';
 setViewMode(savedMode);
-navigateTo('dashboard');
+const initPage = location.hash.replace('#', '') || 'dashboard';
+history.replaceState({ page: initPage }, '', `#${initPage}`);
+navigateTo(initPage, {}, false);
 </script>
 </body>
 </html>
