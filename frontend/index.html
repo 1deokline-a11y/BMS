@@ -104,7 +104,8 @@ body.mobile-mode #btn-mode-pc { background: transparent; color: #a0aec0; border-
 body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-color: #63b3ed; font-weight:600; }
 #btn-mode-pc { background: #63b3ed; color: #1e2a3a; border-color: #63b3ed; font-weight:600; min-width: 90px; }
 #btn-mode-mobile { background: transparent; color: #a0aec0; border-color: #4a5568; min-width: 90px; }
-#view-mode-toggle { background: #1e2a3a; border-radius: 10px; }
+#sidebar { display: flex; flex-direction: column; }
+#view-mode-toggle { flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -124,6 +125,17 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
     <a href="#" data-page="history"><i class="bi bi-clock-history"></i> 변경 이력</a>
     <a href="#" data-page="notification"><i class="bi bi-envelope"></i> 메일 발송</a>
   </nav>
+  <div id="view-mode-toggle" style="padding:0.75rem 1rem;border-top:1px solid #2d3f55;margin-top:auto">
+    <div class="text-muted mb-2" style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;font-weight:600;color:#4a5568!important">화면 모드</div>
+    <div class="btn-group btn-group-sm w-100">
+      <button class="btn" id="btn-mode-pc" onclick="setViewMode('pc')">
+        <i class="bi bi-display me-1"></i>PC
+      </button>
+      <button class="btn" id="btn-mode-mobile" onclick="setViewMode('mobile')">
+        <i class="bi bi-phone me-1"></i>모바일
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- 모바일 하단 네비게이션 -->
@@ -133,6 +145,7 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
   <a href="#" data-page="compare"><i class="bi bi-subtract"></i>비교</a>
   <a href="#" data-page="bulk-edit"><i class="bi bi-pencil-square"></i>수정</a>
   <a href="#" data-page="history"><i class="bi bi-clock-history"></i>이력</a>
+  <a href="#" onclick="setViewMode('pc');return false;"><i class="bi bi-display"></i>PC전환</a>
 </nav>
 
 <!-- Main Content -->
@@ -220,18 +233,6 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
     </div>
   </div>
 
-  <!-- PC / 모바일 화면 전환 -->
-  <div id="view-mode-toggle" class="text-center mt-4 p-3">
-    <div class="text-muted mb-2" style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;font-weight:600;color:#a0aec0!important">화면 모드</div>
-    <div class="btn-group btn-group-sm">
-      <button class="btn" id="btn-mode-pc" onclick="setViewMode('pc')">
-        <i class="bi bi-display me-1"></i>PC
-      </button>
-      <button class="btn" id="btn-mode-mobile" onclick="setViewMode('mobile')">
-        <i class="bi bi-phone me-1"></i>모바일
-      </button>
-    </div>
-  </div>
 
 </div>
 
