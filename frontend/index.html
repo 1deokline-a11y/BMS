@@ -87,12 +87,9 @@ body.mobile-mode #mobile-nav a.active { color: #63b3ed; }
 body.mobile-mode #mobile-nav a i { font-size: 1.25rem; }
 body.mobile-mode .card-body.p-0 { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 body.mobile-mode .page-title { font-size: 1rem; }
-body.mobile-mode #dash-cat-tabs { display: flex !important; width: 100%; }
-body.mobile-mode #dash-cat-tabs .dash-cat-btn { padding: 0.6rem 0.4rem !important; }
-body.mobile-mode #dash-cat-tabs .dash-cat-btn i { font-size: 1.2rem !important; }
-body.mobile-mode #dash-cat-tabs .dash-cat-btn[data-cat="all"]  { flex: 3; }
-body.mobile-mode #dash-cat-tabs .dash-cat-btn[data-cat="기구물"] { flex: 4; }
-body.mobile-mode #dash-cat-tabs .dash-cat-btn[data-cat="수동소자"] { flex: 4; }
+body.mobile-mode #dash-cat-tabs { flex-wrap: wrap !important; }
+body.mobile-mode #dash-cat-tabs .dash-cat-btn { flex: 1; }
+body.mobile-mode #dash-drill-panel .d-flex { overflow-x: auto; }
 body.mobile-mode .bom-table th, body.mobile-mode .bom-table td { font-size: 0.78rem; padding: 0.35rem 0.4rem; }
 body.mobile-mode #compare-table { min-width: 0 !important; table-layout: auto !important; }
 #compare-h1 { border-right: 10px solid #f4f6f9 !important; }
@@ -110,6 +107,22 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 #btn-mode-mobile { background: transparent; color: #a0aec0; border-color: #4a5568; min-width: 90px; }
 #sidebar { display: flex; flex-direction: column; }
 #view-mode-toggle { flex-shrink: 0; }
+
+/* ===== 대시보드 드릴다운 ===== */
+.drill-col-header {
+  padding: 0.4rem 0.75rem; font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: #718096; background: #f7fafc;
+  border-bottom: 1px solid #e2e8f0; white-space: nowrap;
+}
+.drill-item {
+  padding: 0.38rem 0.75rem; cursor: pointer;
+  font-size: 0.8rem; border-bottom: 1px solid #f0f4f8;
+  transition: background 0.1s; line-height: 1.4;
+}
+.drill-item:hover { background: #edf2f7; }
+.drill-item.selected { background: #ebf8ff; color: #2b6cb0; font-weight: 600; }
+.drill-item.selected::before { content: '▶ '; font-size: 0.6rem; vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -158,61 +171,54 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 <!-- ====== DASHBOARD ====== -->
 <div class="page" id="page-dashboard">
 
-  <!-- 분류 탭 허브 (중앙 배치) -->
-  <div class="card mb-4">
-    <div class="card-body py-5">
-      <div class="text-center">
-        <div class="text-muted mb-4" style="font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;font-weight:600">제품 분류 선택</div>
-        <div class="d-flex justify-content-center align-items-stretch gap-3 flex-wrap">
-
-          <!-- 주 분류 버튼 그룹 -->
-          <div class="btn-group shadow-sm" id="dash-cat-tabs" role="group">
-            <button type="button" class="btn btn-primary dash-cat-btn px-5" style="padding-top:1.1rem;padding-bottom:1.1rem" data-cat="all">
-              <i class="bi bi-grid-fill d-block mb-2" style="font-size:1.8rem"></i>
-              <span class="fw-semibold" style="font-size:0.95rem">전체</span>
-            </button>
-            <button type="button" class="btn btn-outline-primary dash-cat-btn px-5" style="padding-top:1.1rem;padding-bottom:1.1rem" data-cat="기구물">
-              <i class="bi bi-box-seam d-block mb-2" style="font-size:1.8rem"></i>
-              <span class="fw-semibold" style="font-size:0.95rem">기구물</span>
-            </button>
-            <button type="button" class="btn btn-outline-primary dash-cat-btn px-5" style="padding-top:1.1rem;padding-bottom:1.1rem" data-cat="수동소자">
-              <i class="bi bi-cpu d-block mb-2" style="font-size:1.8rem"></i>
-              <span class="fw-semibold" style="font-size:0.95rem">수동소자</span>
-            </button>
-          </div>
-
-          <!-- 세부 분류 드롭다운 -->
-          <div class="dropdown" id="dash-sub-wrap">
-            <button type="button" class="btn btn-outline-secondary dropdown-toggle px-5 h-100" style="padding-top:1.1rem;padding-bottom:1.1rem"
-                    id="dash-sub-btn" data-bs-toggle="dropdown" aria-expanded="false" disabled>
-              <i class="bi bi-funnel d-block mb-2" style="font-size:1.8rem"></i>
-              <span style="font-size:0.95rem" id="dash-sub-label">세부 분류</span>
-            </button>
-            <ul class="dropdown-menu shadow" id="dash-sub-menu" style="min-width:210px"></ul>
-          </div>
-
-        </div>
-
-        <!-- 현재 선택 배지 -->
-        <div class="mt-4">
-          <span class="badge rounded-pill px-4 py-2" id="dash-filter-badge"
-                style="font-size:0.85rem;background:#ebf8ff;color:#2b6cb0;border:1px solid #bee3f8">전체</span>
+  <!-- 분류 탭 (컴팩트) -->
+  <div class="card mb-3">
+    <div class="card-body p-2" style="min-height:0">
+      <div class="d-flex align-items-center gap-2 flex-wrap" id="dash-cat-tabs">
+        <button type="button" class="btn btn-sm btn-primary dash-cat-btn" data-cat="all">
+          <i class="bi bi-grid-fill me-1"></i>전체
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary dash-cat-btn" data-cat="기구물">
+          <i class="bi bi-box-seam me-1"></i>기구물
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary dash-cat-btn" data-cat="수동소자">
+          <i class="bi bi-cpu me-1"></i>수동소자
+        </button>
+        <div class="dropdown ms-1">
+          <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                  id="dash-sub-btn" data-bs-toggle="dropdown" aria-expanded="false" disabled>
+            <i class="bi bi-funnel me-1"></i><span id="dash-sub-label">세부 분류</span>
+          </button>
+          <ul class="dropdown-menu shadow" id="dash-sub-menu" style="min-width:200px;max-height:320px;overflow-y:auto"></ul>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 세부분류 선택 시 나타나는 제품 목록 -->
-  <div class="card mb-4" id="dash-product-panel" style="display:none">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span id="dash-product-panel-title"><i class="bi bi-list-ul me-1"></i>제품 목록</span>
-      <span class="badge bg-secondary" id="dash-product-count">0</span>
-    </div>
+  <!-- 4단 드릴다운 패널 -->
+  <div class="card mb-3" id="dash-drill-panel" style="display:none">
     <div class="card-body p-0">
-      <table class="table table-hover table-sm mb-0">
-        <thead><tr><th>품번</th><th>품명</th><th>제품군</th></tr></thead>
-        <tbody id="dash-product-tbody"></tbody>
-      </table>
+      <div class="d-flex" style="min-height:260px">
+        <div style="width:18%;min-width:80px;border-right:1px solid #e2e8f0;flex-shrink:0">
+          <div class="drill-col-header">분류군</div>
+          <div id="drill-col1"></div>
+        </div>
+        <div style="width:22%;min-width:90px;border-right:1px solid #e2e8f0;flex-shrink:0">
+          <div class="drill-col-header">제품군</div>
+          <div id="drill-col2"></div>
+        </div>
+        <div style="width:28%;min-width:110px;border-right:1px solid #e2e8f0;flex-shrink:0">
+          <div class="drill-col-header">제품코드</div>
+          <div id="drill-col3"></div>
+        </div>
+        <div style="flex:1;min-width:100px">
+          <div class="drill-col-header d-flex justify-content-between align-items-center">
+            <span>선택 품번</span>
+            <span class="badge bg-secondary me-1" id="drill-col4-count" style="display:none!important"></span>
+          </div>
+          <div id="drill-col4"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -236,7 +242,6 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
       </table>
     </div>
   </div>
-
 
 </div>
 
@@ -840,138 +845,223 @@ function toast(msg, type = 'success') {
 }
 
 // ===================== Dashboard =====================
-// ── 대시보드 분류 정의 ──────────────────────────────────────────
-const DASH_CATEGORIES = {
+const DASH_TREE = {
   '기구물': {
-    '함체':  ['BOFC','ZOFC','DOFC'],
-    '단자함': ['MA','SA','NA','MD','SD','SB','NB','SC','M5L','M5K','MS','IJP'],
+    '함체': {
+      'BOFC': [
+        { label: 'BOFC-A1  미니함체',      prefixes: ['A11-A1-'] },
+        { label: 'BOFC-A2  세경함체',      prefixes: ['A11-A2-'] },
+        { label: 'BOFC-B1  소형함체 12C',  prefixes: ['A11-B1-'] },
+        { label: 'BOFC-B2  소형함체 24C',  prefixes: ['A11-B2-'] },
+        { label: 'BOFC-B4  16형',          prefixes: ['A11-B4-'] },
+        { label: 'BOFC-C1  19형',          prefixes: ['A11-C1-'] },
+        { label: 'BOFC-C2  24형',          prefixes: ['A11-C2-'] },
+        { label: 'BOFC-D1  27형',          prefixes: ['A11-D1-'] },
+      ],
+      'ZOFC': [
+        { label: 'ZOFC-A1  MDC',           prefixes: ['A11-M1-'] },
+        { label: 'ZOFC-A2  긴급복구함체',   prefixes: ['A11-M2-'] },
+        { label: 'ZOFC-B1  중형 무볼트',    prefixes: ['A11-G1-'] },
+        { label: 'ZOFC-B2  소형 무볼트',    prefixes: ['A11-G2-'] },
+        { label: 'ZOFC-C1  중형 무볼트',    prefixes: ['A11-K1-'] },
+        { label: 'ZOFC-D2  중간분기',       prefixes: ['A11-I2-'] },
+      ],
+      'DOFC': [
+        { label: 'DOFC-C3  돔형 소형',     prefixes: ['A11-E2-', 'A11-E3-'] },
+        { label: 'DOFC-C4  돔형 다분기',   prefixes: ['A11-L3-'] },
+        { label: 'DOFC-D1  돔형 중형',     prefixes: ['A11-F5-'] },
+        { label: 'DOFC-D2  돔형 대형',     prefixes: ['A11-N3-', 'A11-NC-', 'A11-ND-'] },
+        { label: 'DOFC-S1  SK표준 중형',   prefixes: ['A11-S1-'] },
+        { label: 'DOFC-S2  SK표준 대형',   prefixes: ['A11-S2-'] },
+      ],
+      'TOFC': [
+        { label: 'TOFC-T1',                prefixes: ['A11-T1-'] },
+        { label: 'TOFC-T2',                prefixes: ['A11-T2-'] },
+      ],
+    },
+    '단자함': {
+      'IJP 광단자함':     [{ label: 'IJP 광단자함',           prefixes: ['A12-A1-', 'A12-WA-'] }],
+      'PBO BOX':          [{ label: 'PBO BOX',                prefixes: ['A12-L1-'] }],
+      'PTO OUTLET':       [{ label: 'PTO OUTLET',             prefixes: ['A12-L2-'] }],
+      '통합 A형':         [{ label: '광단자함 통합A형',         prefixes: ['A12-MA-'] }],
+      '통합 D형':         [{ label: '광단자함 통합D형',         prefixes: ['A12-MD-'] }],
+      '5G MUX (쏠리드)':  [{ label: '5G MUX (쏠리드향)',       prefixes: ['A12-MK-'] }],
+      '5G MUX (LG)':      [{ label: '5G MUX (LG)',            prefixes: ['A12-ML-'] }],
+      '공중케이블 정비용': [{ label: '공중케이블 정비사업용',    prefixes: ['A12-MP-'] }],
+      'RN 통합':          [{ label: 'RN 통합단자함',           prefixes: ['A12-MR-'] }],
+      '5G C/L-MUX':       [{ label: '5G C/L-MUX',             prefixes: ['A12-MS-'] }],
+      '5G S-MUX':         [{ label: '5G S-MUX',               prefixes: ['A12-MT-'] }],
+      '4G MUX':           [{ label: '4G MUX',                 prefixes: ['A12-MU-'] }],
+      '중간분기타입':      [{ label: '광단자함 중간분기타입',    prefixes: ['A12-NA-'] }],
+      '중간분기분리타입':  [{ label: '광단자함 중간분기분리타입',prefixes: ['A12-NB-'] }],
+      '아울렛 2포트':      [{ label: '광단자함 아울렛 2포트',   prefixes: ['A12-O2-'] }],
+      '아울렛 5포트':      [{ label: '광단자함 아울렛 5포트',   prefixes: ['A12-O5-'] }],
+      '광단자함 A형':      [{ label: '광단자함 A형',            prefixes: ['A12-SA-', 'A12-SQ-'] }],
+      '광단자함 B형':      [{ label: '광단자함 B형',            prefixes: ['A12-SB-'] }],
+      '광단자함 C형':      [{ label: '광단자함 C형',            prefixes: ['A12-SC-'] }],
+      '광단자함 D형':      [{ label: '광단자함 D형',            prefixes: ['A12-SD-'] }],
+      '정비형 6포트':      [{ label: '공중케이블 정비형 6포트', prefixes: ['A12-SP-'] }],
+      '광탭 초소형':       [{ label: '광탭 초소형 단자함',      prefixes: ['A12-SS-'] }],
+      '광탭 분기형':       [{ label: '광탭 분기형 단자함',      prefixes: ['A12-WD-'] }],
+      '광탭 종단형':       [{ label: '광탭 종단형 단자함',      prefixes: ['A12-WT-'] }],
+    },
   },
-  '수동소자': {},
 };
 
-// product_group prefix → 서브카테고리 매핑 (향후 확장)
-const GROUP_PREFIX_MAP = { 'A11': 'BOFC', 'A12': 'ZOFC', 'A13': 'DOFC' };
-
-let dashState = { cat: 'all', sub: null };
+let dashState = { cat: 'all', col1: null, col2: null, col3: null };
 let dashAllProducts = [];
 
-function dashMatchSub(product, subCode) {
-  const haystack = [product.part_number, product.product_group, product.name]
-    .join(' ').toUpperCase();
-  if (haystack.includes(subCode.toUpperCase())) return true;
-  // product_group prefix 매핑 확인
-  const mapped = GROUP_PREFIX_MAP[product.product_group.substring(0, 3)];
-  return mapped === subCode;
+function dashMatchProduct(product, prefixes) {
+  return prefixes.some(pfx => product.part_number && product.part_number.startsWith(pfx));
 }
 
 function dashFilterProducts(products) {
   if (dashState.cat === 'all') return products;
-  if (dashState.sub) return products.filter(p => dashMatchSub(p, dashState.sub));
-  // 대분류만 선택된 경우
-  if (dashState.cat === '기구물') {
-    const allSubs = Object.values(DASH_CATEGORIES['기구물']).flat();
-    return products.filter(p => allSubs.some(s => dashMatchSub(p, s)));
-  }
-  if (dashState.cat === '수동소자') {
-    const gukuSubs = Object.values(DASH_CATEGORIES['기구물']).flat();
-    return products.filter(p => !gukuSubs.some(s => dashMatchSub(p, s)));
-  }
+  if (dashState.cat === '기구물')
+    return products.filter(p => p.part_number && (p.part_number.startsWith('A11-') || p.part_number.startsWith('A12-')));
+  if (dashState.cat === '수동소자')
+    return products.filter(p => !p.part_number || (!p.part_number.startsWith('A11-') && !p.part_number.startsWith('A12-')));
   return products;
+}
+
+function dashRenderDrillCols() {
+  const cat = dashState.cat;
+  const panel = document.getElementById('dash-drill-panel');
+  if (cat === 'all') { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+
+  const ph = (msg) => `<div class="text-muted p-3 small">${msg}</div>`;
+
+  // col1: 분류군
+  const col1El = document.getElementById('drill-col1');
+  if (DASH_TREE[cat]) {
+    col1El.innerHTML = Object.keys(DASH_TREE[cat]).map(g =>
+      `<div class="drill-item${dashState.col1 === g ? ' selected' : ''}" onclick="dashSelectCol1('${g}')">${g}</div>`
+    ).join('');
+  } else {
+    col1El.innerHTML = ph('준비 중');
+  }
+
+  // col2: 제품군
+  const col2El = document.getElementById('drill-col2');
+  const tree2 = dashState.col1 && DASH_TREE[cat]?.[dashState.col1];
+  if (tree2) {
+    col2El.innerHTML = Object.keys(tree2).map(g =>
+      `<div class="drill-item${dashState.col2 === g ? ' selected' : ''}" onclick="dashSelectCol2(this)" data-val="${g.replace(/"/g,'&quot;')}">${g}</div>`
+    ).join('');
+  } else {
+    col2El.innerHTML = ph('분류군 선택');
+  }
+
+  // col3: 제품코드
+  const col3El = document.getElementById('drill-col3');
+  const items3 = dashState.col2 && tree2?.[dashState.col2];
+  if (items3) {
+    col3El.innerHTML = items3.map((item, idx) =>
+      `<div class="drill-item${dashState.col3 === idx ? ' selected' : ''}" onclick="dashSelectCol3(${idx})">${item.label}</div>`
+    ).join('');
+  } else {
+    col3El.innerHTML = ph('제품군 선택');
+  }
+
+  // col4: 선택 품번
+  const col4El = document.getElementById('drill-col4');
+  const countBadge = document.getElementById('drill-col4-count');
+  if (dashState.col3 !== null && items3?.[dashState.col3]) {
+    const { prefixes } = items3[dashState.col3];
+    const matched = dashAllProducts.filter(p => dashMatchProduct(p, prefixes));
+    countBadge.textContent = matched.length;
+    countBadge.style.removeProperty('display');
+    col4El.innerHTML = matched.length
+      ? matched.map(p => `
+          <div class="drill-item d-flex align-items-center justify-content-between">
+            <div style="min-width:0;flex:1;overflow:hidden">
+              <span class="fw-semibold text-primary" style="font-size:0.78rem">${p.part_number}</span>
+              <span class="text-muted d-block" style="font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
+            </div>
+            <button class="btn btn-outline-primary flex-shrink-0 ms-2"
+                    style="font-size:0.7rem;padding:0.1rem 0.5rem"
+                    onclick="openDashProduct(${p.id});event.stopPropagation()">조회</button>
+          </div>`).join('')
+      : ph('해당 품번 없음');
+  } else {
+    countBadge.style.setProperty('display', 'none', 'important');
+    col4El.innerHTML = ph('제품코드 선택');
+  }
+}
+
+function dashSelectCol1(val) {
+  dashState.col1 = dashState.col1 === val ? null : val;
+  dashState.col2 = null; dashState.col3 = null;
+  dashRenderSubMenu();
+  dashRenderDrillCols();
+}
+
+function dashSelectCol2(el) {
+  const val = el.dataset.val;
+  dashState.col2 = dashState.col2 === val ? null : val;
+  dashState.col3 = null;
+  dashRenderDrillCols();
+}
+
+function dashSelectCol3(idx) {
+  dashState.col3 = dashState.col3 === idx ? null : idx;
+  dashRenderDrillCols();
+}
+
+function dashSelectFromDropdown(el) {
+  dashState.col1 = el.dataset.col1;
+  dashState.col2 = el.dataset.col2;
+  dashState.col3 = null;
+  document.getElementById('dash-sub-label').textContent = el.dataset.col2;
+  dashRenderDrillCols();
 }
 
 function dashRenderSubMenu() {
   const menu = document.getElementById('dash-sub-menu');
   const btn  = document.getElementById('dash-sub-btn');
+  const subLabel = document.getElementById('dash-sub-label');
   if (dashState.cat !== '기구물') {
     btn.disabled = true;
-    document.getElementById('dash-sub-label').textContent = '세부 분류';
+    subLabel.textContent = '세부 분류';
     menu.innerHTML = '';
     return;
   }
   btn.disabled = false;
-  const catDef = DASH_CATEGORIES['기구물'];
-  menu.innerHTML = Object.entries(catDef).map(([group, codes]) => `
-    <li><h6 class="dropdown-header">${group}</h6></li>
-    ${codes.map(c => `
-      <li>
-        <a class="dropdown-item d-flex align-items-center gap-2 ${dashState.sub === c ? 'active' : ''}"
-           href="#" onclick="dashSelectSub('${c}');return false;">
-          <span class="badge bg-secondary" style="min-width:48px">${c}</span>
-        </a>
-      </li>`).join('')}
+  menu.innerHTML = Object.entries(DASH_TREE['기구물']).map(([cat1, cat2Obj]) => `
+    <li><h6 class="dropdown-header">${cat1}</h6></li>
+    ${Object.keys(cat2Obj).map(g => `
+      <li><a class="dropdown-item small${dashState.col1 === cat1 && dashState.col2 === g ? ' active' : ''}"
+             href="#" data-col1="${cat1}" data-col2="${g}"
+             onclick="dashSelectFromDropdown(this);return false;">${g}</a></li>
+    `).join('')}
     <li><hr class="dropdown-divider m-1"></li>
   `).join('');
-}
-
-function dashUpdateBadge() {
-  const el = document.getElementById('dash-filter-badge');
-  if (dashState.sub) el.textContent = `${dashState.cat} > ${dashState.sub}`;
-  else if (dashState.cat !== 'all') el.textContent = dashState.cat;
-  else el.textContent = '전체';
-}
-
-function dashSelectSub(sub) {
-  dashState.sub = (dashState.sub === sub) ? null : sub;
-  document.getElementById('dash-sub-label').textContent = dashState.sub || '세부 분류';
-  dashUpdateBadge();
-  dashRenderSubMenu();
-  renderDashboardData();
-  renderDashProductList();
-}
-
-function renderDashProductList() {
-  const panel = document.getElementById('dash-product-panel');
-  if (!dashState.sub) { panel.style.display = 'none'; return; }
-  const filtered = dashFilterProducts(dashAllProducts);
-  panel.style.display = '';
-  document.getElementById('dash-product-panel-title').innerHTML =
-    `<i class="bi bi-list-ul me-1"></i>${dashState.cat} &rsaquo; ${dashState.sub} 제품 목록`;
-  document.getElementById('dash-product-count').textContent = filtered.length;
-  document.getElementById('dash-product-tbody').innerHTML = filtered.length
-    ? filtered.map(p => `
-        <tr style="cursor:pointer" onclick="openDashProduct(${p.id})">
-          <td class="fw-semibold text-primary">${p.part_number}</td>
-          <td>${p.name}</td>
-          <td><span class="badge badge-group">${p.product_group}</span></td>
-        </tr>`).join('')
-    : '<tr><td colspan="3" class="text-center text-muted py-3">해당 분류의 제품 없음</td></tr>';
+  subLabel.textContent = dashState.col2 || '세부 분류';
 }
 
 function openDashProduct(id) {
   navigateTo('products');
-  // BOM 페이지 이동 후 해당 제품 열기 (loadProducts 완료 대기)
   setTimeout(() => {
     currentProductId = id;
     loadBOMInlineDetail(id);
-    // 목록에서 해당 제품 하이라이트
     document.querySelectorAll('.product-list-row').forEach(r => r.classList.remove('table-active'));
   }, 300);
 }
 
-function renderDashboardData() {
-  // stat 카드 제거됨 — 필터 배지만 갱신
-  dashUpdateBadge();
-}
-
 async function loadDashboard() {
-  // 탭 이벤트 (최초 1회 등록)
   if (!document.getElementById('dash-cat-tabs').dataset.init) {
     document.getElementById('dash-cat-tabs').dataset.init = '1';
     document.querySelectorAll('#dash-cat-tabs .dash-cat-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('#dash-cat-tabs .dash-cat-btn').forEach(x => {
-          x.classList.remove('btn-primary');
-          x.classList.add('btn-outline-primary');
+          x.classList.remove('btn-primary'); x.classList.add('btn-outline-primary');
         });
-        btn.classList.remove('btn-outline-primary');
-        btn.classList.add('btn-primary');
+        btn.classList.remove('btn-outline-primary'); btn.classList.add('btn-primary');
         dashState.cat = btn.dataset.cat;
-        dashState.sub = null;
-        document.getElementById('dash-sub-label').textContent = '세부 분류';
-        document.getElementById('dash-product-panel').style.display = 'none';
+        dashState.col1 = null; dashState.col2 = null; dashState.col3 = null;
         dashRenderSubMenu();
-        dashUpdateBadge();
-        renderDashboardData();
+        dashRenderDrillCols();
         renderDashHistory();
       });
     });
@@ -985,7 +1075,7 @@ async function loadDashboard() {
     dashAllProducts = products;
     window._dashHistory = histRes.items || [];
     dashRenderSubMenu();
-    dashUpdateBadge();
+    dashRenderDrillCols();
     renderDashHistory();
   } catch (e) {
     console.error('[dashboard]', e);
@@ -996,11 +1086,9 @@ function renderDashHistory() {
   const items = window._dashHistory || [];
   const filtered = dashFilterProducts(dashAllProducts);
   const filteredPNs = new Set(filtered.map(p => p.part_number));
-
   const visible = dashState.cat === 'all'
     ? items
     : items.filter(h => (h.affected_products || []).some(pn => filteredPNs.has(pn)));
-
   const tbody = document.getElementById('recent-history');
   if (!visible.length) {
     tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">이력 없음</td></tr>';
@@ -1010,17 +1098,16 @@ function renderDashHistory() {
     const dt = new Date(h.timestamp);
     const dateStr = dt.toLocaleDateString('ko-KR', { year:'2-digit', month:'2-digit', day:'2-digit' });
     const timeStr = dt.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
-    const affected = (h.affected_products || []);
+    const affected = h.affected_products || [];
     const pnStr = affected.length
       ? affected.slice(0, 2).join(', ') + (affected.length > 2 ? ` 외 ${affected.length - 2}건` : '')
       : '-';
-    return `
-      <tr>
-        <td class="text-nowrap">${dateStr} ${timeStr}</td>
-        <td>${pnStr}</td>
-        <td class="text-muted">${(h.reason || '').substring(0, 40)}</td>
-        <td>${h.operator}</td>
-      </tr>`;
+    return `<tr>
+      <td class="text-nowrap">${dateStr} ${timeStr}</td>
+      <td>${pnStr}</td>
+      <td class="text-muted">${(h.reason || '').substring(0, 40)}</td>
+      <td>${h.operator}</td>
+    </tr>`;
   }).join('');
 }
 
