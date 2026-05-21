@@ -65,6 +65,15 @@ function parseExcelBOM(filePath) {
   const ws = wb.Sheets[wsName];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
+  // 0행에서 제품명 추출 — "회사명 : ... / {품번} / {제품명}" 형식
+  if (rows.length > 0) {
+    const titleCell = normalize(rows[0][0]);
+    const slashParts = titleCell.split('/');
+    if (slashParts.length >= 3) {
+      meta.name = slashParts.slice(2).join('/').trim();
+    }
+  }
+
   const { headerIdx, colMap } = findHeaderRow(rows);
   if (headerIdx === null) return { meta, bom_items: [] };
 
