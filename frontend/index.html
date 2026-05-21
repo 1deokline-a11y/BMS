@@ -422,34 +422,77 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 <!-- ====== BOM COMPARE ====== -->
 <div class="page" id="page-compare">
   <div class="page-title"><i class="bi bi-subtract me-2"></i>BOM 비교</div>
-  <div class="card mb-3">
-    <div class="card-body">
-      <div class="row g-3 align-items-end">
-        <div class="col-md-4">
-          <label class="form-label fw-bold">비교 BOM 1</label>
-          <select class="form-select form-select-sm" id="compare-select1">
-            <option value="">-- 선택 --</option>
-          </select>
+
+  <!-- 선택된 BOM 배지 + 실행 버튼 -->
+  <div class="card mb-2">
+    <div class="card-body py-2">
+      <div class="d-flex align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-1">
+          <span class="fw-bold text-primary" style="font-size:0.8rem;white-space:nowrap">BOM 1</span>
+          <span id="cmp-badge1" class="badge bg-secondary" style="font-size:0.78rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">미선택</span>
+          <button class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:0.7rem" onclick="cmpClearBOM(1)" title="BOM1 초기화"><i class="bi bi-x"></i></button>
         </div>
-        <div class="col-md-4">
-          <label class="form-label fw-bold">비교 BOM 2</label>
-          <select class="form-select form-select-sm" id="compare-select2">
-            <option value="">-- 선택 --</option>
-          </select>
+        <div class="d-flex align-items-center gap-1">
+          <span class="fw-bold text-success" style="font-size:0.8rem;white-space:nowrap">BOM 2</span>
+          <span id="cmp-badge2" class="badge bg-secondary" style="font-size:0.78rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">미선택</span>
+          <button class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:0.7rem" onclick="cmpClearBOM(2)" title="BOM2 초기화"><i class="bi bi-x"></i></button>
         </div>
-        <div class="col-md-2">
-          <div class="form-check mb-1">
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <div class="form-check mb-0">
             <input class="form-check-input" type="checkbox" id="diff-only-toggle">
-            <label class="form-check-label">차이만 보기</label>
+            <label class="form-check-label" style="font-size:0.82rem">차이만 보기</label>
           </div>
-          <button class="btn btn-primary btn-sm w-100" onclick="runCompare()">
+          <button class="btn btn-primary btn-sm" onclick="runCompare()">
             <i class="bi bi-search me-1"></i>비교 실행
           </button>
-        </div>
-        <div class="col-md-2">
-          <button class="btn btn-outline-success btn-sm w-100" id="btn-export-compare" onclick="exportCompare()" disabled>
+          <button class="btn btn-outline-success btn-sm" id="btn-export-compare" onclick="exportCompare()" disabled>
             <i class="bi bi-download me-1"></i>엑셀 다운로드
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4단 드릴다운 패널 (분류군 탭 + 드릴다운) -->
+  <div class="card mb-3">
+    <!-- 분류군 탭 -->
+    <div class="card-header p-0 d-flex" id="cmp-cat-tabs" style="border-bottom:1px solid #e2e8f0">
+      <button class="btn btn-sm cmp-cat-btn active" data-cat="all"
+              onclick="cmpSetCat('all')"
+              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
+        전체
+      </button>
+      <button class="btn btn-sm cmp-cat-btn" data-cat="기구물"
+              onclick="cmpSetCat('기구물')"
+              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
+        기구물
+      </button>
+      <button class="btn btn-sm cmp-cat-btn" data-cat="단자함"
+              onclick="cmpSetCat('단자함')"
+              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
+        단자함
+      </button>
+    </div>
+    <!-- 전체 탭: 단순 목록 -->
+    <div id="cmp-all-list" class="card-body p-2" style="max-height:300px;overflow-y:auto"></div>
+    <!-- 드릴다운 패널 -->
+    <div id="cmp-drill-panel" style="display:none">
+      <div class="d-flex" style="min-height:240px">
+        <div style="width:18%;min-width:80px;border-right:1px solid #e2e8f0;flex-shrink:0">
+          <div class="drill-col-header">분류군</div>
+          <div id="cmp-drill-col1"></div>
+        </div>
+        <div style="width:22%;min-width:90px;border-right:1px solid #e2e8f0;flex-shrink:0">
+          <div class="drill-col-header">제품군</div>
+          <div id="cmp-drill-col2"></div>
+        </div>
+        <div style="width:28%;min-width:110px;border-right:1px solid #e2e8f0;flex-shrink:0">
+          <div class="drill-col-header">제품코드</div>
+          <div id="cmp-drill-col3"></div>
+        </div>
+        <div style="flex:1;min-width:120px">
+          <div class="drill-col-header">선택 품번</div>
+          <div id="cmp-drill-col4"></div>
         </div>
       </div>
     </div>
@@ -1431,21 +1474,149 @@ async function exportBOM() {
 }
 
 // ===================== Compare =====================
+let cmpAllProducts = [];
+let cmpPick1 = null;   // { id, part_number, name }
+let cmpPick2 = null;
+let cmpDrillState = { cat: 'all', col1: null, col2: null, col3: null };
+
 async function loadCompareSelects() {
   try {
-    const products = await api('GET', '/api/products');
-    const options = products.map(p => `<option value="${p.id}">${p.part_number} - ${p.name}</option>`).join('');
-    document.getElementById('compare-select1').innerHTML = '<option value="">-- 선택 --</option>' + options;
-    document.getElementById('compare-select2').innerHTML = '<option value="">-- 선택 --</option>' + options;
+    cmpAllProducts = await api('GET', '/api/products');
+    cmpSetCat(cmpDrillState.cat);
   } catch (e) {}
 }
 
+function cmpSetCat(cat) {
+  cmpDrillState = { cat, col1: null, col2: null, col3: null };
+  document.querySelectorAll('#cmp-cat-tabs .cmp-cat-btn').forEach(b => {
+    const active = b.dataset.cat === cat;
+    b.classList.toggle('active', active);
+    b.style.borderBottomColor = active ? '#3b82f6' : 'transparent';
+    b.style.color = active ? '#3b82f6' : '';
+    b.style.fontWeight = active ? '700' : '';
+  });
+  cmpRenderPanel();
+}
+
+function cmpRenderPanel() {
+  const { cat } = cmpDrillState;
+  const allList = document.getElementById('cmp-all-list');
+  const drillPanel = document.getElementById('cmp-drill-panel');
+
+  if (cat === 'all') {
+    drillPanel.style.display = 'none';
+    allList.style.display = '';
+    allList.innerHTML = cmpAllProducts.length
+      ? cmpAllProducts.map(p => `
+          <div class="drill-item d-flex align-items-center justify-content-between mb-1">
+            <div style="min-width:0;flex:1;overflow:hidden">
+              <span class="fw-semibold text-primary" style="font-size:0.78rem">${p.part_number}</span>
+              <span class="text-muted d-block" style="font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
+            </div>
+            <div class="d-flex gap-1 flex-shrink-0 ms-1">
+              <button class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size:0.68rem" onclick="cmpSetBOM(1,${p.id},'${p.part_number.replace(/'/g,"\\'")}','${(p.name||'').replace(/'/g,"\\'")}');event.stopPropagation()">BOM1</button>
+              <button class="btn btn-sm btn-outline-success py-0 px-1" style="font-size:0.68rem" onclick="cmpSetBOM(2,${p.id},'${p.part_number.replace(/'/g,"\\'")}','${(p.name||'').replace(/'/g,"\\'")}');event.stopPropagation()">BOM2</button>
+            </div>
+          </div>`).join('')
+      : '<div class="text-muted small p-2">제품 없음</div>';
+    return;
+  }
+
+  allList.style.display = 'none';
+  drillPanel.style.display = '';
+  cmpRenderDrillCols();
+}
+
+function cmpRenderDrillCols() {
+  const { cat, col1: sc1, col2: sc2, col3: sc3 } = cmpDrillState;
+  const ph = t => `<div class="text-muted px-2 py-1" style="font-size:0.75rem">${t}</div>`;
+
+  // col1
+  const c1El = document.getElementById('cmp-drill-col1');
+  if (DASH_TREE[cat]) {
+    c1El.innerHTML = Object.keys(DASH_TREE[cat]).map(g =>
+      `<div class="drill-item${sc1 === g ? ' selected' : ''}" onclick="cmpSelectCol1('${g}')">${g}</div>`
+    ).join('');
+  } else { c1El.innerHTML = ph('준비 중'); }
+
+  // col2
+  const c2El = document.getElementById('cmp-drill-col2');
+  const tree2 = sc1 && DASH_TREE[cat]?.[sc1];
+  if (tree2) {
+    c2El.innerHTML = Object.keys(tree2).map(g =>
+      `<div class="drill-item${sc2 === g ? ' selected' : ''}" onclick="cmpSelectCol2(this)" data-val="${g.replace(/"/g,'&quot;')}">${g}</div>`
+    ).join('');
+  } else { c2El.innerHTML = ph('분류군 선택'); }
+
+  // col3
+  const c3El = document.getElementById('cmp-drill-col3');
+  const items3 = sc2 && tree2?.[sc2];
+  if (items3) {
+    c3El.innerHTML = items3.map((item, idx) =>
+      `<div class="drill-item${sc3 === idx ? ' selected' : ''}" onclick="cmpSelectCol3(${idx})">${item.label}</div>`
+    ).join('');
+  } else { c3El.innerHTML = ph('제품군 선택'); }
+
+  // col4
+  const c4El = document.getElementById('cmp-drill-col4');
+  if (sc3 !== null && items3?.[sc3]) {
+    const { prefixes } = items3[sc3];
+    const matched = cmpAllProducts.filter(p => dashMatchProduct(p, prefixes));
+    c4El.innerHTML = matched.length
+      ? matched.map(p => `
+          <div class="drill-item d-flex align-items-center justify-content-between">
+            <div style="min-width:0;flex:1;overflow:hidden">
+              <span class="fw-semibold text-primary" style="font-size:0.78rem">${p.part_number}</span>
+              <span class="text-muted d-block" style="font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
+            </div>
+            <div class="d-flex gap-1 flex-shrink-0 ms-1">
+              <button class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size:0.68rem" onclick="cmpSetBOM(1,${p.id},'${p.part_number.replace(/'/g,"\\'")}','${(p.name||'').replace(/'/g,"\\'")}');event.stopPropagation()">BOM1</button>
+              <button class="btn btn-sm btn-outline-success py-0 px-1" style="font-size:0.68rem" onclick="cmpSetBOM(2,${p.id},'${p.part_number.replace(/'/g,"\\'")}','${(p.name||'').replace(/'/g,"\\'")}');event.stopPropagation()">BOM2</button>
+            </div>
+          </div>`).join('')
+      : ph('해당 품번 없음');
+  } else { c4El.innerHTML = ph('제품코드 선택'); }
+}
+
+function cmpSelectCol1(val) {
+  cmpDrillState.col1 = cmpDrillState.col1 === val ? null : val;
+  cmpDrillState.col2 = null; cmpDrillState.col3 = null;
+  cmpRenderDrillCols();
+}
+function cmpSelectCol2(el) {
+  const val = el.dataset.val;
+  cmpDrillState.col2 = cmpDrillState.col2 === val ? null : val;
+  cmpDrillState.col3 = null;
+  cmpRenderDrillCols();
+}
+function cmpSelectCol3(idx) {
+  cmpDrillState.col3 = cmpDrillState.col3 === idx ? null : idx;
+  cmpRenderDrillCols();
+}
+
+function cmpSetBOM(n, id, partNumber, name) {
+  const pick = { id, part_number: partNumber, name };
+  if (n === 1) { cmpPick1 = pick; currentCompareId1 = id; }
+  else          { cmpPick2 = pick; currentCompareId2 = id; }
+  const badge = document.getElementById(`cmp-badge${n}`);
+  badge.textContent = `${partNumber} - ${name}`;
+  badge.classList.remove('bg-secondary');
+  badge.classList.add(n === 1 ? 'bg-primary' : 'bg-success');
+}
+
+function cmpClearBOM(n) {
+  if (n === 1) { cmpPick1 = null; currentCompareId1 = null; }
+  else          { cmpPick2 = null; currentCompareId2 = null; }
+  const badge = document.getElementById(`cmp-badge${n}`);
+  badge.textContent = '미선택';
+  badge.className = 'badge bg-secondary';
+}
+
 async function runCompare() {
-  const id1 = document.getElementById('compare-select1').value;
-  const id2 = document.getElementById('compare-select2').value;
-  if (!id1 || !id2 || id1 === id2) { toast('두 개의 다른 BOM을 선택해주세요', 'warning'); return; }
-  currentCompareId1 = id1;
-  currentCompareId2 = id2;
+  const id1 = currentCompareId1;
+  const id2 = currentCompareId2;
+  if (!id1 || !id2) { toast('BOM1과 BOM2를 모두 선택해주세요', 'warning'); return; }
+  if (id1 === id2)   { toast('서로 다른 BOM을 선택해주세요', 'warning'); return; }
   try {
     const diffOnly = document.getElementById('diff-only-toggle').checked;
     const result = await api('GET', `/api/compare?id1=${id1}&id2=${id2}&diff_only=${diffOnly}`);
