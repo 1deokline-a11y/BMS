@@ -2153,7 +2153,10 @@ async function doSignup() {
   if (pw.length < 8) { errEl.textContent = '비밀번호는 8자 이상이어야 합니다.'; errEl.style.display = ''; return; }
   if (pw !== pw2)    { errEl.textContent = '비밀번호가 일치하지 않습니다.'; errEl.style.display = ''; return; }
   spinner.style.display = ''; btn.disabled = true;
-  const { data, error } = await sbClient.auth.signUp({ email, password: pw });
+  const { data, error } = await sbClient.auth.signUp({
+    email, password: pw,
+    options: { emailRedirectTo: window.location.origin + window.location.pathname },
+  });
   spinner.style.display = 'none'; btn.disabled = false;
   if (error) { errEl.textContent = translateAuthError(error.message); errEl.style.display = ''; return; }
   if (data.user?.identities?.length === 0) {
