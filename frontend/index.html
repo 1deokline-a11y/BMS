@@ -90,6 +90,8 @@ body.mobile-mode .page-title { font-size: 1rem; }
 body.mobile-mode #dash-cat-tabs { flex-wrap: wrap !important; }
 body.mobile-mode #dash-cat-tabs .dash-cat-btn { flex: 1; }
 body.mobile-mode #dash-drill-panel .d-flex { overflow-x: auto; }
+body.mobile-mode #prod-drill-panel .d-flex { overflow-x: auto; }
+body.mobile-mode #cmp-drill-panel .d-flex { overflow-x: auto; }
 body.mobile-mode .bom-table th, body.mobile-mode .bom-table td { font-size: 0.78rem; padding: 0.35rem 0.4rem; }
 body.mobile-mode #compare-table { min-width: 0 !important; table-layout: auto !important; }
 #compare-h1 { border-right: 10px solid #f4f6f9 !important; }
@@ -286,6 +288,55 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
           <button class="btn btn-primary btn-sm" onclick="loadProducts()">
             <i class="bi bi-search me-1"></i>검색
           </button>
+        </div>
+        <div class="col-auto ms-auto">
+          <button class="btn btn-outline-secondary btn-sm" id="btn-prod-drill-toggle" onclick="toggleProdDrill()">
+            <i class="bi bi-diagram-3 me-1"></i>분류로 찾기
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 분류 드릴다운 패널 (토글) -->
+  <div class="card mb-3" id="prod-drill-card" style="display:none">
+    <div class="card-header p-0 d-flex" id="prod-cat-tabs" style="border-bottom:1px solid #e2e8f0">
+      <button class="btn btn-sm prod-cat-btn active" data-cat="all"
+              onclick="prodSetCat('all')"
+              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid #3b82f6;color:#3b82f6;font-weight:700">
+        전체
+      </button>
+      <button class="btn btn-sm prod-cat-btn" data-cat="기구물"
+              onclick="prodSetCat('기구물')"
+              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
+        기구물
+      </button>
+      <button class="btn btn-sm prod-cat-btn" data-cat="단자함"
+              onclick="prodSetCat('단자함')"
+              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
+        단자함
+      </button>
+    </div>
+    <!-- 전체 탭: 스크롤 목록 -->
+    <div id="prod-all-list" class="card-body p-2" style="max-height:280px;overflow-y:auto"></div>
+    <!-- 드릴다운 4단 패널 -->
+    <div id="prod-drill-panel" style="display:none">
+      <div class="d-flex" style="min-height:220px">
+        <div style="width:18%;min-width:80px;border-right:1px solid #e2e8f0;flex-shrink:0">
+          <div class="drill-col-header">분류군</div>
+          <div id="prod-drill-col1"></div>
+        </div>
+        <div style="width:22%;min-width:90px;border-right:1px solid #e2e8f0;flex-shrink:0">
+          <div class="drill-col-header">제품군</div>
+          <div id="prod-drill-col2"></div>
+        </div>
+        <div style="width:28%;min-width:110px;border-right:1px solid #e2e8f0;flex-shrink:0">
+          <div class="drill-col-header">제품코드</div>
+          <div id="prod-drill-col3"></div>
+        </div>
+        <div style="flex:1;min-width:100px">
+          <div class="drill-col-header">선택 품번</div>
+          <div id="prod-drill-col4"></div>
         </div>
       </div>
     </div>
@@ -1263,6 +1314,126 @@ function renderDashHistory() {
 
 // ===================== Products =====================
 let allProducts = [];
+let prodDrillState = { cat: 'all', col1: null, col2: null, col3: null };
+let prodDrillOpen = false;
+
+function toggleProdDrill() {
+  prodDrillOpen = !prodDrillOpen;
+  const card = document.getElementById('prod-drill-card');
+  const btn = document.getElementById('btn-prod-drill-toggle');
+  card.style.display = prodDrillOpen ? '' : 'none';
+  btn.classList.toggle('btn-outline-secondary', !prodDrillOpen);
+  btn.classList.toggle('btn-secondary', prodDrillOpen);
+  if (prodDrillOpen) prodSetCat(prodDrillState.cat);
+}
+
+function prodSetCat(cat) {
+  prodDrillState = { cat, col1: null, col2: null, col3: null };
+  document.querySelectorAll('#prod-cat-tabs .prod-cat-btn').forEach(b => {
+    const active = b.dataset.cat === cat;
+    b.classList.toggle('active', active);
+    b.style.borderBottomColor = active ? '#3b82f6' : 'transparent';
+    b.style.color = active ? '#3b82f6' : '';
+    b.style.fontWeight = active ? '700' : '';
+  });
+  prodRenderPanel();
+}
+
+function prodRenderPanel() {
+  const { cat } = prodDrillState;
+  const allList = document.getElementById('prod-all-list');
+  const drillPanel = document.getElementById('prod-drill-panel');
+
+  if (cat === 'all') {
+    drillPanel.style.display = 'none';
+    allList.style.display = '';
+    const ph = '<div class="text-muted small p-2">제품 없음</div>';
+    allList.innerHTML = allProducts.length
+      ? allProducts.map(p => `
+          <div class="drill-item d-flex align-items-center justify-content-between mb-1">
+            <div style="min-width:0;flex:1;overflow:hidden;cursor:pointer" onclick="openBOMFromDrill(${p.id})">
+              <span class="fw-semibold text-primary" style="font-size:0.78rem">${p.part_number}</span>
+              <span class="text-muted d-block" style="font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
+            </div>
+            <button class="btn btn-outline-primary flex-shrink-0 ms-2"
+                    style="font-size:0.7rem;padding:0.1rem 0.5rem"
+                    onclick="openBOMFromDrill(${p.id});event.stopPropagation()">조회</button>
+          </div>`).join('')
+      : ph;
+    return;
+  }
+
+  allList.style.display = 'none';
+  drillPanel.style.display = '';
+  prodRenderDrillCols();
+}
+
+function prodRenderDrillCols() {
+  const { cat, col1: sc1, col2: sc2, col3: sc3 } = prodDrillState;
+  const ph = t => `<div class="text-muted px-2 py-1" style="font-size:0.75rem">${t}</div>`;
+
+  const c1El = document.getElementById('prod-drill-col1');
+  if (DASH_TREE[cat]) {
+    c1El.innerHTML = Object.keys(DASH_TREE[cat]).map(g =>
+      `<div class="drill-item${sc1 === g ? ' selected' : ''}" onclick="prodSelectCol1('${g}')">${g}</div>`
+    ).join('');
+  } else { c1El.innerHTML = ph('준비 중'); }
+
+  const c2El = document.getElementById('prod-drill-col2');
+  const tree2 = sc1 && DASH_TREE[cat]?.[sc1];
+  if (tree2) {
+    c2El.innerHTML = Object.keys(tree2).map(g =>
+      `<div class="drill-item${sc2 === g ? ' selected' : ''}" onclick="prodSelectCol2(this)" data-val="${g.replace(/"/g,'&quot;')}">${g}</div>`
+    ).join('');
+  } else { c2El.innerHTML = ph('분류군 선택'); }
+
+  const c3El = document.getElementById('prod-drill-col3');
+  const items3 = sc2 && tree2?.[sc2];
+  if (items3) {
+    c3El.innerHTML = items3.map((item, idx) =>
+      `<div class="drill-item${sc3 === idx ? ' selected' : ''}" onclick="prodSelectCol3(${idx})">${item.label}</div>`
+    ).join('');
+  } else { c3El.innerHTML = ph('제품군 선택'); }
+
+  const c4El = document.getElementById('prod-drill-col4');
+  if (sc3 !== null && items3?.[sc3]) {
+    const { prefixes } = items3[sc3];
+    const matched = allProducts.filter(p => dashMatchProduct(p, prefixes));
+    c4El.innerHTML = matched.length
+      ? matched.map(p => `
+          <div class="drill-item d-flex align-items-center justify-content-between">
+            <div style="min-width:0;flex:1;overflow:hidden;cursor:pointer" onclick="openBOMFromDrill(${p.id})">
+              <span class="fw-semibold text-primary" style="font-size:0.78rem">${p.part_number}</span>
+              <span class="text-muted d-block" style="font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
+            </div>
+            <button class="btn btn-outline-primary flex-shrink-0 ms-2"
+                    style="font-size:0.7rem;padding:0.1rem 0.5rem"
+                    onclick="openBOMFromDrill(${p.id});event.stopPropagation()">조회</button>
+          </div>`).join('')
+      : ph('해당 품번 없음');
+  } else { c4El.innerHTML = ph('제품코드 선택'); }
+}
+
+function prodSelectCol1(val) {
+  prodDrillState.col1 = prodDrillState.col1 === val ? null : val;
+  prodDrillState.col2 = null; prodDrillState.col3 = null;
+  prodRenderDrillCols();
+}
+function prodSelectCol2(el) {
+  const val = el.dataset.val;
+  prodDrillState.col2 = prodDrillState.col2 === val ? null : val;
+  prodDrillState.col3 = null;
+  prodRenderDrillCols();
+}
+function prodSelectCol3(idx) {
+  prodDrillState.col3 = prodDrillState.col3 === idx ? null : idx;
+  prodRenderDrillCols();
+}
+
+function openBOMFromDrill(id) {
+  openBOM(id);
+  document.getElementById(id.toString()) && document.getElementById(id.toString()).scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+}
 
 async function loadProducts() {
   try {
@@ -1272,7 +1443,7 @@ async function loadProducts() {
     const data = await api('GET', url);
     allProducts = data;
     renderProductList(data);
-    // 상세 숨김
+    if (prodDrillOpen) prodRenderPanel();
     document.getElementById('bom-inline-detail').style.display = 'none';
   } catch (e) { toast('제품 목록 로드 실패: ' + e.message, 'danger'); }
 }
