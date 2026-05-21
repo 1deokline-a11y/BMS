@@ -2108,7 +2108,7 @@ function translateAuthError(msg) {
   if (msg.includes('Email not confirmed'))       return '이메일 인증이 필요합니다. 메일함을 확인해주세요.';
   if (msg.includes('User already registered'))   return '이미 가입된 이메일입니다.';
   if (msg.includes('Password should be'))        return '비밀번호는 8자 이상이어야 합니다.';
-  if (msg.includes('rate limit') || msg.includes('too many')) return '잠시 후 다시 시도해주세요.';
+  if (msg.includes('rate limit') || msg.includes('too many') || msg.includes('429')) return '이메일 발송 한도를 초과했습니다. 1시간 후 다시 시도하거나 관리자에게 문의하세요.';
   if (msg.includes('Unable to validate'))        return '이메일 형식이 올바르지 않습니다.';
   return msg;
 }
@@ -2158,7 +2158,12 @@ async function doSignup() {
     options: { emailRedirectTo: window.location.origin + window.location.pathname },
   });
   spinner.style.display = 'none'; btn.disabled = false;
-  if (error) { errEl.textContent = translateAuthError(error.message); errEl.style.display = ''; return; }
+  if (error) {
+    const msg = error.status === 429
+      ? '이메일 발송 한도를 초과했습니다. 잠시 후 다시 시도해주세요. (Supabase 무료 플랜: 시간당 2건 제한)'
+      : translateAuthError(error.message);
+    errEl.textContent = msg; errEl.style.display = ''; return;
+  }
   if (data.user?.identities?.length === 0) {
     errEl.textContent = '이미 가입된 이메일입니다.'; errEl.style.display = ''; return;
   }
