@@ -33,7 +33,25 @@ const dbReady = initDB()
   .then(() => seedFromExcel(getOrCreatePart, parseExcelBOM, supabase))
   .catch(e => console.error('[startup]', e.message));
 
-app.use('/api', async (_req, _res, next) => { await dbReady; next(); });
+async function requireAuth(req, res, next) {
+  if (req.path === '/health') return next();
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ detail: '인증이 필요합니다' });
+  }
+  const token = authHeader.slice(7);
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    return res.status(401).json({ detail: '인증이 만료되었습니다. 다시 로그인해주세요.' });
+  }
+  req.user = user;
+  next();
+}
+
+app.use('/api', async (req, res, next) => {
+  await dbReady;
+  return requireAuth(req, res, next);
+});
 
 // ======================================================
 // HEALTH

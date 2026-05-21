@@ -108,6 +108,19 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 #sidebar { display: flex; flex-direction: column; }
 #view-mode-toggle { flex-shrink: 0; }
 
+/* ===== 로그인 오버레이 ===== */
+#auth-overlay {
+  position: fixed; inset: 0; background: #eef2f7;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10000;
+}
+#auth-overlay .auth-card {
+  width: 420px; max-width: 95vw;
+  border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,.12);
+}
+.pw-toggle { border-left: none; }
+.pw-toggle:focus { box-shadow: none; border-color: #ced4da; }
+
 /* ===== 대시보드 드릴다운 ===== */
 .drill-col-header {
   padding: 0.4rem 0.75rem; font-size: 0.7rem; font-weight: 700;
@@ -142,7 +155,14 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
     <a href="#" data-page="history"><i class="bi bi-clock-history"></i> 변경 이력</a>
     <a href="#" data-page="notification"><i class="bi bi-envelope"></i> 메일 발송</a>
   </nav>
-  <div id="view-mode-toggle" style="padding:0.75rem 1rem;border-top:1px solid #2d3f55;margin-top:auto">
+  <div style="padding:0.65rem 1rem;border-top:1px solid #2d3f55;margin-top:auto">
+    <div style="font-size:0.65rem;color:#4a5568;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;margin-bottom:0.3rem">계정</div>
+    <div style="font-size:0.75rem;color:#a0aec0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:0.45rem" id="sidebar-user-email">-</div>
+    <button class="btn btn-sm w-100" style="background:#2d3f55;color:#a0aec0;border:none;font-size:0.72rem" onclick="doSignOut()">
+      <i class="bi bi-box-arrow-right me-1"></i>로그아웃
+    </button>
+  </div>
+  <div id="view-mode-toggle" style="padding:0.75rem 1rem;border-top:1px solid #2d3f55">
     <div class="text-muted mb-2" style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;font-weight:600;color:#4a5568!important">화면 모드</div>
     <div class="btn-group btn-group-sm w-100">
       <button class="btn" id="btn-mode-pc" onclick="setViewMode('pc')">
@@ -753,6 +773,86 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 <!-- Toast Container -->
 <div id="toast-container"></div>
 
+<!-- ====== 로그인/회원가입 오버레이 ====== -->
+<div id="auth-overlay">
+  <div class="auth-card card border-0">
+    <div class="card-body p-0">
+      <!-- 헤더 -->
+      <div class="text-center pt-4 pb-3 px-4" style="background:#1e2a3a;border-radius:14px 14px 0 0">
+        <i class="bi bi-diagram-3-fill" style="font-size:2.2rem;color:#63b3ed"></i>
+        <div class="fw-bold mt-1" style="color:#fff;font-size:1.05rem">BOM 관리 시스템</div>
+        <div style="color:#a0aec0;font-size:0.78rem">에이제이월드</div>
+      </div>
+      <!-- 탭 -->
+      <ul class="nav nav-tabs border-bottom px-4 pt-3" style="gap:0.5rem">
+        <li class="nav-item">
+          <button class="nav-link active px-3 py-2" id="tab-login-btn" onclick="showAuthTab('login')">
+            <i class="bi bi-box-arrow-in-right me-1"></i>로그인
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link px-3 py-2" id="tab-signup-btn" onclick="showAuthTab('signup')">
+            <i class="bi bi-person-plus me-1"></i>회원가입
+          </button>
+        </li>
+      </ul>
+      <!-- 로그인 폼 -->
+      <div id="auth-login-form" class="p-4">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">이메일</label>
+          <input type="email" class="form-control" id="auth-email" placeholder="example@email.com"
+                 onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">비밀번호</label>
+          <div class="input-group">
+            <input type="password" class="form-control" id="auth-pw" placeholder="비밀번호 입력"
+                   onkeydown="if(event.key==='Enter')doLogin()">
+            <button class="btn btn-outline-secondary pw-toggle" type="button" onclick="togglePwVis('auth-pw','auth-pw-eye')">
+              <i class="bi bi-eye" id="auth-pw-eye"></i>
+            </button>
+          </div>
+        </div>
+        <div class="alert alert-danger py-2 small mb-3" id="auth-login-error" style="display:none"></div>
+        <button class="btn btn-primary w-100" onclick="doLogin()" id="auth-login-btn">
+          <span class="spinner-border spinner-border-sm me-1" id="auth-login-spinner" style="display:none"></span>
+          로그인
+        </button>
+      </div>
+      <!-- 회원가입 폼 -->
+      <div id="auth-signup-form" class="p-4" style="display:none">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">이메일</label>
+          <input type="email" class="form-control" id="signup-email" placeholder="example@email.com">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">비밀번호 <span class="text-muted fw-normal" style="font-size:0.8rem">(8자 이상)</span></label>
+          <div class="input-group">
+            <input type="password" class="form-control" id="signup-pw" placeholder="8자 이상 입력"
+                   oninput="checkPwStrength()" onkeydown="if(event.key==='Enter')doSignup()">
+            <button class="btn btn-outline-secondary pw-toggle" type="button" onclick="togglePwVis('signup-pw','signup-pw-eye')">
+              <i class="bi bi-eye" id="signup-pw-eye"></i>
+            </button>
+          </div>
+          <div id="pw-strength-wrap" class="mt-1"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">비밀번호 확인</label>
+          <input type="password" class="form-control" id="signup-pw2" placeholder="비밀번호 재입력"
+                 onkeydown="if(event.key==='Enter')doSignup()">
+        </div>
+        <div class="alert alert-danger py-2 small mb-3" id="auth-signup-error" style="display:none"></div>
+        <div class="alert alert-success py-2 small mb-3" id="auth-signup-success" style="display:none"></div>
+        <button class="btn btn-success w-100" onclick="doSignup()" id="auth-signup-btn">
+          <span class="spinner-border spinner-border-sm me-1" id="auth-signup-spinner" style="display:none"></span>
+          회원가입
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // ===================== Router =====================
@@ -811,10 +911,16 @@ function setViewMode(mode) {
 }
 
 // ===================== API helpers =====================
+function getAuthHeaders() {
+  const token = window._supaSession?.access_token;
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
 async function api(method, path, body = null) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  const opts = { method, headers: { 'Content-Type': 'application/json', ...getAuthHeaders() } };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(API + path, opts);
+  if (res.status === 401) { doSignOut(); throw new Error('세션이 만료되었습니다. 다시 로그인해주세요.'); }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || '서버 오류');
@@ -823,7 +929,8 @@ async function api(method, path, body = null) {
 }
 
 async function apiForm(path, formData) {
-  const res = await fetch(API + path, { method: 'POST', body: formData });
+  const res = await fetch(API + path, { method: 'POST', headers: getAuthHeaders(), body: formData });
+  if (res.status === 401) { doSignOut(); throw new Error('세션이 만료되었습니다.'); }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || '서버 오류');
@@ -1953,12 +2060,140 @@ function renderImportResults(results) {
   if (ok > 0) toast(`✅ ${ok}개 파일 임포트 완료`, 'success');
 }
 
+// ===================== Auth =====================
+const SUPABASE_URL = 'https://oysheraasexnsvazqfkj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95c2hlcmFhc2V4bnN2YXpxZmtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MTM4ODMsImV4cCI6MjA5NDA4OTg4M30.polGIOVJqg0nAgiKFn-BEXg6x2OOQKAamanSO8gPSkY';
+const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function showAuthTab(tab) {
+  document.getElementById('auth-login-form').style.display  = tab === 'login'  ? '' : 'none';
+  document.getElementById('auth-signup-form').style.display = tab === 'signup' ? '' : 'none';
+  document.getElementById('tab-login-btn').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-signup-btn').classList.toggle('active', tab === 'signup');
+  document.getElementById('auth-login-error').style.display   = 'none';
+  document.getElementById('auth-signup-error').style.display  = 'none';
+  document.getElementById('auth-signup-success').style.display = 'none';
+}
+
+function togglePwVis(inputId, eyeId) {
+  const inp = document.getElementById(inputId);
+  const ico = document.getElementById(eyeId);
+  if (inp.type === 'password') { inp.type = 'text';     ico.className = 'bi bi-eye-slash'; }
+  else                         { inp.type = 'password'; ico.className = 'bi bi-eye'; }
+}
+
+function checkPwStrength() {
+  const pw = document.getElementById('signup-pw').value;
+  const wrap = document.getElementById('pw-strength-wrap');
+  if (!pw) { wrap.innerHTML = ''; return; }
+  let score = 0;
+  if (pw.length >= 8)              score++;
+  if (pw.length >= 12)             score++;
+  if (/[A-Z]/.test(pw))           score++;
+  if (/[0-9]/.test(pw))           score++;
+  if (/[^A-Za-z0-9]/.test(pw))   score++;
+  const labels = ['', '매우 약함', '약함', '보통', '강함', '매우 강함'];
+  const colors = ['', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997'];
+  const widths = ['0%', '20%', '40%', '60%', '80%', '100%'];
+  wrap.innerHTML = `
+    <div style="height:4px;background:#e2e8f0;border-radius:2px">
+      <div style="height:100%;width:${widths[score]};background:${colors[score]};border-radius:2px;transition:all 0.3s"></div>
+    </div>
+    <div style="font-size:0.7rem;color:${colors[score]};margin-top:2px">${labels[score]}</div>`;
+}
+
+function translateAuthError(msg) {
+  if (!msg) return '오류가 발생했습니다.';
+  if (msg.includes('Invalid login credentials')) return '이메일 또는 비밀번호가 올바르지 않습니다.';
+  if (msg.includes('Email not confirmed'))       return '이메일 인증이 필요합니다. 메일함을 확인해주세요.';
+  if (msg.includes('User already registered'))   return '이미 가입된 이메일입니다.';
+  if (msg.includes('Password should be'))        return '비밀번호는 8자 이상이어야 합니다.';
+  if (msg.includes('rate limit') || msg.includes('too many')) return '잠시 후 다시 시도해주세요.';
+  if (msg.includes('Unable to validate'))        return '이메일 형식이 올바르지 않습니다.';
+  return msg;
+}
+
+function showAppWithSession(session) {
+  window._supaSession = session;
+  document.getElementById('auth-overlay').style.display = 'none';
+  const email = session?.user?.email || '';
+  document.getElementById('sidebar-user-email').textContent = email;
+  const savedMode = localStorage.getItem('viewMode') || 'pc';
+  setViewMode(savedMode);
+  const initPage = location.hash.replace('#', '') || 'dashboard';
+  history.replaceState({ page: initPage }, '', `#${initPage}`);
+  navigateTo(initPage, {}, false);
+}
+
+async function doLogin() {
+  const email   = document.getElementById('auth-email').value.trim();
+  const pw      = document.getElementById('auth-pw').value;
+  const errEl   = document.getElementById('auth-login-error');
+  const spinner = document.getElementById('auth-login-spinner');
+  const btn     = document.getElementById('auth-login-btn');
+  errEl.style.display = 'none';
+  if (!email || !pw) { errEl.textContent = '이메일과 비밀번호를 입력해주세요.'; errEl.style.display = ''; return; }
+  spinner.style.display = ''; btn.disabled = true;
+  const { data, error } = await sbClient.auth.signInWithPassword({ email, password: pw });
+  spinner.style.display = 'none'; btn.disabled = false;
+  if (error) { errEl.textContent = translateAuthError(error.message); errEl.style.display = ''; return; }
+  showAppWithSession(data.session);
+}
+
+async function doSignup() {
+  const email   = document.getElementById('signup-email').value.trim();
+  const pw      = document.getElementById('signup-pw').value;
+  const pw2     = document.getElementById('signup-pw2').value;
+  const errEl   = document.getElementById('auth-signup-error');
+  const succEl  = document.getElementById('auth-signup-success');
+  const spinner = document.getElementById('auth-signup-spinner');
+  const btn     = document.getElementById('auth-signup-btn');
+  errEl.style.display = 'none'; succEl.style.display = 'none';
+  if (!email)        { errEl.textContent = '이메일을 입력해주세요.'; errEl.style.display = ''; return; }
+  if (pw.length < 8) { errEl.textContent = '비밀번호는 8자 이상이어야 합니다.'; errEl.style.display = ''; return; }
+  if (pw !== pw2)    { errEl.textContent = '비밀번호가 일치하지 않습니다.'; errEl.style.display = ''; return; }
+  spinner.style.display = ''; btn.disabled = true;
+  const { data, error } = await sbClient.auth.signUp({ email, password: pw });
+  spinner.style.display = 'none'; btn.disabled = false;
+  if (error) { errEl.textContent = translateAuthError(error.message); errEl.style.display = ''; return; }
+  if (data.user?.identities?.length === 0) {
+    errEl.textContent = '이미 가입된 이메일입니다.'; errEl.style.display = ''; return;
+  }
+  if (data.session) {
+    showAppWithSession(data.session);
+  } else {
+    succEl.textContent = '가입 완료! 이메일을 확인하여 인증 링크를 클릭해주세요.';
+    succEl.style.display = '';
+  }
+}
+
+async function doSignOut() {
+  await sbClient.auth.signOut();
+  window._supaSession = null;
+  document.getElementById('auth-overlay').style.display = 'flex';
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-pw').value = '';
+  document.getElementById('auth-login-error').style.display = 'none';
+}
+
 // ===================== Init =====================
-const savedMode = localStorage.getItem('viewMode') || 'pc';
-setViewMode(savedMode);
-const initPage = location.hash.replace('#', '') || 'dashboard';
-history.replaceState({ page: initPage }, '', `#${initPage}`);
-navigateTo(initPage, {}, false);
+(async () => {
+  const { data: { session } } = await sbClient.auth.getSession();
+  if (session) {
+    showAppWithSession(session);
+  } else {
+    document.getElementById('auth-overlay').style.display = 'flex';
+  }
+  sbClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'TOKEN_REFRESHED' && session) {
+      window._supaSession = session;
+    }
+    if (event === 'SIGNED_OUT') {
+      window._supaSession = null;
+      document.getElementById('auth-overlay').style.display = 'flex';
+    }
+  });
+})();
 </script>
 </body>
 </html>
