@@ -2160,10 +2160,16 @@ async function doSignup() {
     errEl.textContent = '이미 가입된 이메일입니다.'; errEl.style.display = ''; return;
   }
   if (data.session) {
+    // 이메일 인증 없이 바로 가입 완료 (Supabase 설정에서 Email Confirmations 비활성화 상태)
     showAppWithSession(data.session);
   } else {
-    succEl.textContent = '가입 완료! 이메일을 확인하여 인증 링크를 클릭해주세요.';
+    // 이메일 인증 필요 (Supabase 대시보드에서 Email Confirmations 활성화 상태)
+    succEl.innerHTML = `
+      <i class="bi bi-envelope-check me-1"></i>
+      <strong>인증 메일을 발송했습니다.</strong><br>
+      <span class="text-muted">${email} 로 발송된 링크를 클릭하시면 가입이 완료됩니다.</span>`;
     succEl.style.display = '';
+    document.getElementById('auth-signup-btn').disabled = false;
   }
 }
 
@@ -2185,8 +2191,12 @@ async function doSignOut() {
     document.getElementById('auth-overlay').style.display = 'flex';
   }
   sbClient.auth.onAuthStateChange((event, session) => {
-    if (event === 'TOKEN_REFRESHED' && session) {
+    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
       window._supaSession = session;
+      // 이메일 인증 링크 클릭 후 리다이렉트된 경우 앱 진입
+      if (document.getElementById('auth-overlay').style.display !== 'none') {
+        showAppWithSession(session);
+      }
     }
     if (event === 'SIGNED_OUT') {
       window._supaSession = null;
