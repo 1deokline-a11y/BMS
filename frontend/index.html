@@ -270,10 +270,10 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
               style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
         기구물
       </button>
-      <button class="btn btn-sm prod-cat-btn" data-cat="단자함"
-              onclick="prodSetCat('단자함')"
+      <button class="btn btn-sm prod-cat-btn" data-cat="수동소자"
+              onclick="prodSetCat('수동소자')"
               style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
-        단자함
+        수동소자
       </button>
       <div class="d-flex align-items-center gap-1 ms-auto pe-2">
         <input type="text" class="form-control form-control-sm" id="filter-search"
@@ -468,10 +468,10 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
               style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
         기구물
       </button>
-      <button class="btn btn-sm cmp-cat-btn" data-cat="단자함"
-              onclick="cmpSetCat('단자함')"
+      <button class="btn btn-sm cmp-cat-btn" data-cat="수동소자"
+              onclick="cmpSetCat('수동소자')"
               style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
-        단자함
+        수동소자
       </button>
     </div>
     <!-- 전체 탭: 단순 목록 -->
@@ -565,10 +565,10 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
               style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
         기구물
       </button>
-      <button class="btn btn-sm edit-cat-btn" data-cat="단자함"
-              onclick="editSetCat('단자함')"
+      <button class="btn btn-sm edit-cat-btn" data-cat="수동소자"
+              onclick="editSetCat('수동소자')"
               style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
-        단자함
+        수동소자
       </button>
       <div class="d-flex align-items-center gap-1 ms-auto pe-2">
         <input type="text" class="form-control form-control-sm" id="edit-drill-search"
@@ -595,6 +595,52 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
           <div class="drill-col-header">선택 품번</div>
           <div id="edit-drill-col4" style="max-height:370px;overflow-y:auto"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 선택된 BOM 인라인 편집기 -->
+  <div id="edit-inline-detail" style="display:none">
+    <div class="card mb-2">
+      <div class="card-body py-2 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+          <span class="fw-bold fs-5 text-primary" id="ep-pn">-</span>
+          <span class="text-secondary" id="ep-name">-</span>
+          <span class="badge bg-secondary" id="ep-version">BOM ver -</span>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-success btn-sm" onclick="exportEditBOM()">
+            <i class="bi bi-download me-1"></i>엑셀 다운로드
+          </button>
+          <button class="btn btn-success btn-sm" onclick="saveEditBOM()">
+            <i class="bi bi-save me-1"></i>저장
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>BOM 리스트 <span class="badge bg-primary ms-1" id="ep-count">0</span></span>
+        <button class="btn btn-outline-primary btn-sm" onclick="addEditBOMRow()">
+          <i class="bi bi-plus-circle me-1"></i>행 추가
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <table class="table bom-table mb-0">
+          <thead>
+            <tr>
+              <th width="45">NO.</th>
+              <th>품목코드</th>
+              <th>품목명</th>
+              <th>규격명</th>
+              <th width="60">단위</th>
+              <th width="70">수량</th>
+              <th>적요</th>
+              <th width="50">삭제</th>
+            </tr>
+          </thead>
+          <tbody id="ep-body"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -991,7 +1037,7 @@ const DASH_TREE = {
         { label: 'TOFC-T2',                prefixes: ['A11-T2-'] },
       ],
     },
-    '단자함': {
+    '수동소자': {
       'IJP 광단자함':     [{ label: 'IJP 광단자함',           prefixes: ['A12-A1-', 'A12-WA-'] }],
       'PBO BOX':          [{ label: 'PBO BOX',                prefixes: ['A12-L1-'] }],
       'PTO OUTLET':       [{ label: 'PTO OUTLET',             prefixes: ['A12-L2-'] }],
@@ -1030,9 +1076,9 @@ function dashMatchProduct(product, prefixes) {
 function dashFilterProducts(products) {
   if (dashState.cat === 'all') return products;
   if (dashState.cat === '기구물')
-    return products.filter(p => p.part_number && (p.part_number.startsWith('A11-') || p.part_number.startsWith('A12-')));
+    return products.filter(p => p.part_number?.startsWith('A11-'));
   if (dashState.cat === '수동소자')
-    return products.filter(p => !p.part_number || (!p.part_number.startsWith('A11-') && !p.part_number.startsWith('A12-')));
+    return products.filter(p => p.part_number?.startsWith('A12-'));
   return products;
 }
 
@@ -1347,9 +1393,80 @@ function editSelectCol3(idx) {
   editRenderPanel();
 }
 
-function openBOMForEdit(id) {
-  navigateTo('products');
-  setTimeout(() => openBOM(id), 200);
+let editProductId = null;
+let editBOMItems = [];
+
+async function openBOMForEdit(id) {
+  try {
+    const p = await api('GET', `/api/products/${id}`);
+    editProductId = id;
+    editBOMItems = JSON.parse(JSON.stringify(p.bom_items || []));
+    document.getElementById('ep-pn').textContent = p.part_number;
+    document.getElementById('ep-name').textContent = p.name;
+    document.getElementById('ep-version').textContent = `BOM ver ${p.variant_code || '0000'}`;
+    const panel = document.getElementById('edit-inline-detail');
+    panel.style.display = '';
+    renderEditBOMTable();
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    toast('BOM 로드 실패: ' + e.message, 'danger');
+  }
+}
+
+function renderEditBOMTable() {
+  const visibleItems = editBOMItems.filter(item => {
+    const pn = (item.part?.part_number || '').trim();
+    const pname = (item.part?.part_name || '').trim();
+    return !isMetaCell(pn) && !isMetaCell(pname);
+  });
+  document.getElementById('ep-count').textContent = visibleItems.length;
+  const totalQty = visibleItems.reduce((s, it) => s + (parseFloat(it.quantity) || 0), 0);
+  const displayQty = totalQty % 1 === 0 ? totalQty : totalQty.toFixed(2);
+  document.getElementById('ep-body').innerHTML = visibleItems.map((item, i) => {
+    const p = item.part || {};
+    return `<tr>
+      <td>${i+1}</td>
+      <td><input type="text" class="form-control form-control-sm" value="${p.part_number||''}" onchange="updateEditBOMItem(${i},'part_number',this.value)"></td>
+      <td><input type="text" class="form-control form-control-sm" value="${p.part_name||''}" onchange="updateEditBOMItem(${i},'part_name',this.value)"></td>
+      <td><input type="text" class="form-control form-control-sm" value="${p.spec||''}" onchange="updateEditBOMItem(${i},'spec',this.value)"></td>
+      <td><input type="text" class="form-control form-control-sm" value="${p.unit||'EA'}" onchange="updateEditBOMItem(${i},'unit',this.value)" style="width:55px"></td>
+      <td><input type="number" class="form-control form-control-sm" value="${item.quantity||1}" step="0.1" onchange="updateEditBOMItem(${i},'quantity',parseFloat(this.value))" style="width:65px"></td>
+      <td><input type="text" class="form-control form-control-sm" value="${item.notes||''}" onchange="updateEditBOMItem(${i},'notes',this.value)"></td>
+      <td><button class="btn btn-outline-danger btn-sm py-0" onclick="deleteEditBOMRow(${i})"><i class="bi bi-trash"></i></button></td>
+    </tr>`;
+  }).join('') + `<tr class="fw-bold" style="background:#f8f9fa;border-top:2px solid #dee2e6">
+    <td colspan="5" class="text-center">합 계</td><td>${displayQty}</td><td colspan="2"></td>
+  </tr>`;
+}
+
+function updateEditBOMItem(idx, field, value) {
+  if (!editBOMItems[idx].part) editBOMItems[idx].part = {};
+  if (['part_number','part_name','spec','unit'].includes(field)) editBOMItems[idx].part[field] = value;
+  else editBOMItems[idx][field] = value;
+}
+function deleteEditBOMRow(idx) { editBOMItems.splice(idx, 1); renderEditBOMTable(); }
+function addEditBOMRow() {
+  editBOMItems.push({ part: { part_number:'', part_name:'', spec:'', unit:'EA' }, quantity:1, notes:'', row_order: editBOMItems.length });
+  renderEditBOMTable();
+}
+async function saveEditBOM() {
+  if (!editProductId) return;
+  try {
+    const items = editBOMItems.map((item, i) => ({
+      part_number: item.part?.part_number || '',
+      part_name:   item.part?.part_name   || '',
+      spec:        item.part?.spec        || '',
+      unit:        item.part?.unit        || 'EA',
+      quantity:    item.quantity          || 1,
+      notes:       item.notes             || '',
+      row_order:   i,
+    })).filter(it => it.part_number || it.part_name);
+    await api('PUT', `/api/products/${editProductId}/bom`, items);
+    toast('BOM 저장 완료!');
+  } catch (e) { toast('저장 실패: ' + e.message, 'danger'); }
+}
+function exportEditBOM() {
+  if (editProductId) window.open(`/api/import/excel?product_id=${editProductId}`, '_blank');
 }
 
 // ===================== Products =====================
