@@ -326,15 +326,80 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
       <table class="table table-sm table-hover mb-0">
         <thead class="table-light">
           <tr>
-            <th style="width:160px">품번</th>
+            <th style="width:30px"></th>
+            <th style="width:155px">품번</th>
             <th>품명</th>
-            <th style="width:180px">규격</th>
+            <th style="width:175px">규격</th>
             <th style="width:55px">단위</th>
             <th>사용 제품</th>
           </tr>
         </thead>
         <tbody id="part-search-body"></tbody>
       </table>
+    </div>
+
+    <!-- 부품 인라인 상세/수정 패널 -->
+    <div id="part-detail-panel" style="display:none;border-top:2px solid #f59e0b">
+      <div class="p-3 bg-warning bg-opacity-10">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-pencil-square text-warning fs-5"></i>
+            <span class="fw-bold">부품 상세 / 수정</span>
+            <span class="badge bg-warning text-dark font-monospace" id="pd-pn-badge">-</span>
+          </div>
+          <button class="btn btn-sm btn-outline-secondary" onclick="closePartDetail()">
+            <i class="bi bi-x"></i> 닫기
+          </button>
+        </div>
+        <div class="row g-3 mb-3">
+          <input type="hidden" id="pd-id">
+          <div class="col-md-3">
+            <label class="form-label small fw-bold mb-1">품번 <span class="text-muted fw-normal">(변경 불가)</span></label>
+            <input type="text" class="form-control form-control-sm font-monospace bg-light" id="pd-pn" readonly>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-bold mb-1">품명 <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" id="pd-name" maxlength="100">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-bold mb-1">규격</label>
+            <input type="text" class="form-control form-control-sm" id="pd-spec" maxlength="100">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-bold mb-1">단위</label>
+            <select class="form-select form-select-sm" id="pd-unit">
+              <option value="EA">EA</option>
+              <option value="SET">SET</option>
+              <option value="M">M</option>
+              <option value="MM">MM</option>
+              <option value="KG">KG</option>
+              <option value="G">G</option>
+              <option value="BOX">BOX</option>
+              <option value="ROLL">ROLL</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 사용 제품 목록 -->
+        <div class="mb-3">
+          <label class="form-label small fw-bold mb-1">
+            <i class="bi bi-diagram-3 me-1"></i>사용 제품
+            <span class="badge bg-secondary ms-1" id="pd-used-count">0</span>
+          </label>
+          <div id="pd-used-list" class="d-flex flex-wrap gap-1"></div>
+        </div>
+
+        <!-- 액션 버튼 -->
+        <div class="d-flex gap-2 align-items-center">
+          <button class="btn btn-primary btn-sm" onclick="savePartDetail()">
+            <i class="bi bi-floppy me-1"></i>저장
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deletePartDetail()">
+            <i class="bi bi-trash me-1"></i>삭제
+          </button>
+          <span class="small ms-2" id="pd-msg"></span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1645,6 +1710,10 @@ async function loadPartsSearch(q) {
     document.getElementById('part-search-count').textContent = parts.length;
     termEl.textContent = `"${q}" 검색`;
 
+    // 검색 결과 캐시 (부품 ID → 데이터)
+    window._partCache = {};
+    parts.forEach(p => { window._partCache[p.id] = p; });
+
     document.getElementById('part-search-body').innerHTML = parts.map(p => {
       const usedIn = (p.used_in || []);
       const usedBadges = usedIn.length
@@ -1652,26 +1721,179 @@ async function loadPartsSearch(q) {
             `<span class="badge bg-light text-primary border me-1 mb-1"
               style="cursor:pointer;font-size:0.78em"
               title="${u.name} (수량: ${u.quantity})"
-              onclick="openBOM(${u.product_id})">
+              onclick="event.stopPropagation();openBOM(${u.product_id})">
               ${u.part_number}
             </span>`).join('')
         : '<span class="text-muted small">—</span>';
 
-      const specTxt = p.spec ? `<span class="text-muted small">${p.spec}</span>` : '<span class="text-muted">—</span>';
+      const specTxt = p.spec ? `<small class="text-muted">${p.spec}</small>` : '<span class="text-muted">—</span>';
 
-      return `<tr>
+      return `<tr class="part-row" data-part-id="${p.id}"
+                  style="cursor:pointer"
+                  onclick="openPartDetail(${p.id})"
+                  title="클릭하면 상세 보기 / 수정">
+        <td class="text-center text-muted"><i class="bi bi-chevron-right small" id="part-chevron-${p.id}"></i></td>
         <td class="fw-semibold font-monospace" style="color:#b45309">${p.part_number || '—'}</td>
         <td>${p.part_name || '—'}</td>
         <td>${specTxt}</td>
         <td class="text-muted small">${p.unit || 'EA'}</td>
-        <td>${usedBadges}</td>
+        <td onclick="event.stopPropagation()">${usedBadges}</td>
       </tr>`;
     }).join('');
 
+    // 기존 패널 닫기
+    closePartDetail();
     container.style.display = '';
   } catch (e) {
     console.warn('부품 검색 오류:', e.message);
   }
+}
+
+function openPartDetail(partId) {
+  const panel = document.getElementById('part-detail-panel');
+  const currentId = document.getElementById('pd-id').value;
+
+  // 같은 행 재클릭 → 토글 닫기
+  if (String(currentId) === String(partId) && panel.style.display !== 'none') {
+    closePartDetail();
+    return;
+  }
+
+  // 이전 선택 행 강조 해제
+  document.querySelectorAll('.part-row').forEach(r => {
+    r.classList.remove('table-warning');
+    const ic = r.querySelector('[id^="part-chevron-"]');
+    if (ic) { ic.className = 'bi bi-chevron-right small'; }
+  });
+
+  // 현재 행 강조
+  const row = document.querySelector(`.part-row[data-part-id="${partId}"]`);
+  if (row) {
+    row.classList.add('table-warning');
+    const ic = row.querySelector(`#part-chevron-${partId}`);
+    if (ic) { ic.className = 'bi bi-chevron-down small text-warning'; }
+  }
+
+  const p = (window._partCache || {})[partId];
+  if (!p) return;
+
+  // 패널 채우기
+  document.getElementById('pd-id').value = p.id;
+  document.getElementById('pd-pn').value = p.part_number;
+  document.getElementById('pd-pn-badge').textContent = p.part_number;
+  document.getElementById('pd-name').value = p.part_name;
+  document.getElementById('pd-spec').value = p.spec || '';
+  document.getElementById('pd-unit').value = p.unit || 'EA';
+  document.getElementById('pd-msg').innerHTML = '';
+
+  // 사용 제품 뱃지
+  const usedIn = p.used_in || [];
+  document.getElementById('pd-used-count').textContent = usedIn.length;
+  document.getElementById('pd-used-list').innerHTML = usedIn.length
+    ? usedIn.map(u => `
+        <span class="badge border me-1 mb-1" style="cursor:pointer;background:#eff6ff;color:#1d4ed8;font-size:0.8em"
+              title="${u.name} (수량: ${u.quantity}개)"
+              onclick="openBOM(${u.product_id})">
+          <i class="bi bi-box me-1"></i>${u.part_number}
+          <span class="text-muted ms-1">×${u.quantity}</span>
+        </span>`).join('')
+    : '<span class="text-muted small">사용 중인 제품 없음</span>';
+
+  panel.style.display = '';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closePartDetail() {
+  document.getElementById('part-detail-panel').style.display = 'none';
+  document.getElementById('pd-id').value = '';
+  document.querySelectorAll('.part-row').forEach(r => {
+    r.classList.remove('table-warning');
+    const ic = r.querySelector('[id^="part-chevron-"]');
+    if (ic) ic.className = 'bi bi-chevron-right small';
+  });
+}
+
+async function savePartDetail() {
+  const id   = document.getElementById('pd-id').value;
+  const name = document.getElementById('pd-name').value.trim();
+  const spec = document.getElementById('pd-spec').value.trim();
+  const unit = document.getElementById('pd-unit').value;
+  const msg  = document.getElementById('pd-msg');
+
+  if (!name) { msg.innerHTML = '<span class="text-danger">품명을 입력해주세요.</span>'; return; }
+
+  msg.innerHTML = '<span class="text-muted">저장 중...</span>';
+  try {
+    const result = await api('PUT', `/api/parts/${id}`, { part_name: name, spec, unit });
+    // 캐시 업데이트
+    if (window._partCache && window._partCache[id]) {
+      window._partCache[id].part_name = result.part_name;
+      window._partCache[id].spec = result.spec;
+      window._partCache[id].unit = result.unit;
+    }
+    // 테이블 행도 업데이트
+    const row = document.querySelector(`.part-row[data-part-id="${id}"]`);
+    if (row) {
+      const cells = row.querySelectorAll('td');
+      if (cells[2]) cells[2].textContent = result.part_name;
+      if (cells[3]) cells[3].innerHTML = result.spec
+        ? `<small class="text-muted">${result.spec}</small>`
+        : '<span class="text-muted">—</span>';
+      if (cells[4]) cells[4].textContent = result.unit;
+    }
+    msg.innerHTML = '<span class="text-success fw-semibold">✅ 저장 완료</span>';
+    toast('부품 수정 완료: ' + result.part_number, 'success');
+  } catch (e) {
+    msg.innerHTML = `<span class="text-danger">❌ ${e.message}</span>`;
+  }
+}
+
+async function deletePartDetail() {
+  const id = document.getElementById('pd-id').value;
+  const pn = document.getElementById('pd-pn').value;
+  const usedCount = parseInt(document.getElementById('pd-used-count').textContent) || 0;
+  const msg = document.getElementById('pd-msg');
+
+  if (usedCount > 0) {
+    // 사용 중인 경우 강제 삭제 확인
+    const ok = confirm(
+      `⚠️ "${pn}" 은(는) ${usedCount}개 제품의 BOM에서 사용 중입니다.\n` +
+      `강제 삭제하면 해당 BOM 항목도 모두 제거됩니다.\n\n계속하시겠습니까?`
+    );
+    if (!ok) return;
+
+    msg.innerHTML = '<span class="text-muted">삭제 중...</span>';
+    try {
+      await api('DELETE', `/api/parts/${id}?force=true`);
+      _afterPartDelete(id, pn);
+    } catch (e) {
+      msg.innerHTML = `<span class="text-danger">❌ ${e.message}</span>`;
+    }
+  } else {
+    const ok = confirm(`"${pn}" 부품을 삭제하시겠습니까?`);
+    if (!ok) return;
+    msg.innerHTML = '<span class="text-muted">삭제 중...</span>';
+    try {
+      await api('DELETE', `/api/parts/${id}`);
+      _afterPartDelete(id, pn);
+    } catch (e) {
+      msg.innerHTML = `<span class="text-danger">❌ ${e.message}</span>`;
+    }
+  }
+}
+
+function _afterPartDelete(id, pn) {
+  // 테이블 행 제거
+  const row = document.querySelector(`.part-row[data-part-id="${id}"]`);
+  if (row) row.remove();
+  // 캐시 제거
+  if (window._partCache) delete window._partCache[id];
+  // 카운트 감소
+  const countEl = document.getElementById('part-search-count');
+  if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent) - 1);
+  // 패널 닫기
+  closePartDetail();
+  toast(`부품 삭제 완료: ${pn}`, 'success');
 }
 
 function buildProductRemarks(p) {

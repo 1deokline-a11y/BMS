@@ -390,6 +390,79 @@ app.get('/api/parts/search', async (req, res) => {
   } catch (e) { res.status(500).json({ detail: e.message }); }
 });
 
+// 단일 부품 조회 (사용 제품 포함)
+app.get('/api/parts/:id', async (req, res) => {
+  try {
+    const { data: part, error } = await supabase
+      .from('parts').select('*').eq('id', req.params.id).maybeSingle();
+    if (error) throw error;
+    if (!part) return res.status(404).json({ detail: '부품을 찾을 수 없습니다' });
+
+    const { data: usage } = await supabase
+      .from('bom_items')
+      .select('quantity, products(id, part_number, name, product_group)')
+      .eq('part_id', part.id);
+
+    res.json({
+      ...part,
+      used_in: (usage || []).filter(r => r.products).map(r => ({
+        product_id: r.products.id,
+        part_number: r.products.part_number,
+        name: r.products.name,
+        product_group: r.products.product_group,
+        quantity: r.quantity,
+      })),
+    });
+  } catch (e) { res.status(500).json({ detail: e.message }); }
+});
+
+// 부품 수정
+app.put('/api/parts/:id', async (req, res) => {
+  try {
+    const { part_name, spec = '', unit = 'EA' } = req.body;
+    if (!part_name) return res.status(400).json({ detail: '품명은 필수입니다' });
+
+    const { data, error } = await supabase
+      .from('parts')
+      .update({ part_name, spec, unit })
+      .eq('id', req.params.id)
+      .select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (e) { res.status(500).json({ detail: e.message }); }
+});
+
+// 부품 삭제
+app.delete('/api/parts/:id', async (req, res) => {
+  try {
+    const force = req.query.force === 'true';
+
+    // 사용 중인 BOM 항목 확인
+    const { data: usage } = await supabase
+      .from('bom_items')
+      .select('id, products(part_number, name)')
+      .eq('part_id', req.params.id);
+
+    if ((usage || []).length > 0 && !force) {
+      return res.status(409).json({
+        detail: '이 부품은 BOM에서 사용 중입니다. force=true 로 강제 삭제하세요.',
+        used_in: usage.filter(r => r.products).map(r => ({
+          part_number: r.products.part_number,
+          name: r.products.name,
+        })),
+      });
+    }
+
+    // BOM 항목에서 먼저 제거 후 부품 삭제
+    if ((usage || []).length > 0) {
+      await supabase.from('bom_items').delete().eq('part_id', req.params.id);
+    }
+    const { error } = await supabase.from('parts').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ detail: e.message }); }
+});
+
 // ======================================================
 // BULK EDIT
 // ======================================================
