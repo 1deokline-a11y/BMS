@@ -326,6 +326,27 @@ app.get('/api/compare/export', async (req, res) => {
 });
 
 // ======================================================
+// PARTS  (부품 등록 / 검색)
+// ======================================================
+app.post('/api/parts', async (req, res) => {
+  try {
+    const { part_number, part_name, spec = '', unit = 'EA' } = req.body;
+    if (!part_number || !part_name)
+      return res.status(400).json({ detail: '품번(part_number)과 품명(part_name)은 필수입니다' });
+
+    // 중복 확인
+    const { data: existing } = await supabase
+      .from('parts').select('id, part_number, part_name, spec, unit')
+      .eq('part_number', part_number).maybeSingle();
+    if (existing)
+      return res.status(409).json({ detail: `이미 등록된 품번입니다 (${existing.part_name})`, existing });
+
+    const part = await getOrCreatePart(part_number, part_name, spec, unit);
+    res.status(201).json(part);
+  } catch (e) { res.status(500).json({ detail: e.message }); }
+});
+
+// ======================================================
 // PARTS SEARCH  (부품 검색 - BOM 탭용)
 // ======================================================
 app.get('/api/parts/search', async (req, res) => {
