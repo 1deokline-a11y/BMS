@@ -2659,6 +2659,7 @@ function openPNModal(targetFieldId) {
   document.getElementById('pn-char-group').querySelectorAll('input').forEach(r => r.checked = false);
   document.getElementById('pn-group-sel').value = '';
   document.getElementById('pn-result').textContent = '-';
+  document.getElementById('pn-ref').textContent = '';
   document.getElementById('pn-result-area').className = 'alert alert-secondary d-flex align-items-center mb-4';
   _pnShowSection('none');
   const modal = new bootstrap.Modal(document.getElementById('pnModal'));
@@ -2711,59 +2712,96 @@ function pnBuildResult() {
   try {
     const char = document.querySelector('#pn-char-group input:checked')?.value || '';
     const g = document.getElementById('pn-group-sel').value;
-    let pn = '';
-    if (!char || !g) { document.getElementById('pn-result').textContent = '— (품목특성·제품군 선택 필요)'; return; }
+    let pn = '', pnRef = '';
+    const prefix = `${char}${g}`; // 품목특성+제품군 붙여쓰기: A11, P12, N99 등
+
+    if (!char || !g) {
+      document.getElementById('pn-result').textContent = '— (품목특성·제품군 선택 필요)';
+      document.getElementById('pn-ref').textContent = '';
+      return;
+    }
 
     if (g === '14') {
-      // OJC: [특성]-14-[종류4]-[코아5]-[심선수6]-[재질7]-[커넥터1:8]-[커넥터2:9]-[길이10~12]-[마킹13]
-      const ojcType = document.getElementById('pn-ojc-type').value;
-      const ojcCore = document.getElementById('pn-ojc-core').value;
-      const ojcCount= document.getElementById('pn-ojc-count').value.padStart(2,'0').replace(/\D/g,'') || '__';
-      const ojcCol  = document.getElementById('pn-ojc-color').value;
-      const ojcC1   = document.getElementById('pn-ojc-conn1').value;
-      const ojcC2   = document.getElementById('pn-ojc-conn2').value;
-      const ojcLen  = document.getElementById('pn-ojc-len').value || '___';
-      const ojcMark = document.getElementById('pn-ojc-mark').value;
-      pn = `${char}-14-${ojcType||'_'}${ojcCore||'_'}${ojcCount||'__'}${ojcCol||'_'}${ojcC1||'_'}${ojcC2||'_'}-${ojcLen}-${ojcMark||'_'}`;
+      // OJC: [특성][14]-[종류코아심선수색상커넥터1커넥터2]-[길이]-[마킹]
+      // 형식: A14-AB010011-005-N
+      const ojcType  = document.getElementById('pn-ojc-type').value;
+      const ojcCore  = document.getElementById('pn-ojc-core').value;
+      const rawCount = document.getElementById('pn-ojc-count').value.replace(/\D/g,'');
+      const ojcCount = rawCount ? rawCount.padStart(2,'0') : '__';
+      const ojcCol   = document.getElementById('pn-ojc-color').value;
+      const ojcC1    = document.getElementById('pn-ojc-conn1').value;
+      const ojcC2    = document.getElementById('pn-ojc-conn2').value;
+      const ojcLen   = document.getElementById('pn-ojc-len').value || '___';
+      const ojcMark  = document.getElementById('pn-ojc-mark').value;
+      const body = `${ojcType||'_'}${ojcCore||'_'}${ojcCount}${ojcCol||'_'}${ojcC1||'_'}${ojcC2||'_'}`;
+      pn = `${prefix}-${body}-${ojcLen}-${ojcMark||'_'}`;
+      pnRef = '※ OJC 특수형식 (표준 xxx-xx-xxxx 외)';
+
     } else if (g === '18') {
-      // 수동소자: [특성]-18-[종류4,5]-[연마면6]-[셔터7]-[슬리브8]-[철핀9]-[포트수10]
+      // 수동소자: [특성][18]-[종류2자리]-[속성4자리]  →  A18-SC-A112
       const paType   = document.getElementById('pn-pa-type').value;
       const isAtten  = ['FA','LA','SA'].includes(paType);
       if (isAtten) {
         const paDB = document.getElementById('pn-pa-db').value;
-        pn = `${char}-18-${paType||'__'}${paDB||'_'}`;
+        pn = `${prefix}-${paType||'__'}-${paDB||'_'}`;
+        pnRef = '※ 감쇄기 형식: [특성][18]-[종류]-[dB]';
       } else {
         const paPolish = document.getElementById('pn-pa-polish').value;
         const paShut   = document.getElementById('pn-pa-shutter').value;
         const paSleeve = document.getElementById('pn-pa-sleeve').value;
         const paPin    = document.getElementById('pn-pa-pin').value;
         const paPort   = document.getElementById('pn-pa-port').value;
-        pn = `${char}-18-${paType||'__'}${paPolish||'_'}${paShut||'_'}${paSleeve||'_'}${paPin||'_'}${paPort||'_'}`;
+        const detail4  = `${paPolish||'_'}${paShut||'_'}${paSleeve||'_'}${paPin||'_'}`;
+        pn = `${prefix}-${paType||'__'}-${detail4}${paPort||'_'}`;
+        pnRef = '※ 어댑터 형식: [특성][18]-[종류]-[연마면][셔터][슬리브][철핀][포트수]';
       }
+
     } else if (g === '90') {
-      // N90-[품목4,5]-[규격6~9]
+      // 규격구매품: N90-[품목2자리]-[규격4자리]
       const item = document.getElementById('pn-n90-item').value;
-      const spec = document.getElementById('pn-n90-spec').value.replace(/\s/g,'').toUpperCase().substring(0,4);
-      pn = `N90-${item||'__'}-${spec||'____'}`;
+      const spec = document.getElementById('pn-n90-spec').value.replace(/\s/g,'').toUpperCase().padEnd(4,'_').substring(0,4);
+      pn = `N90-${item||'__'}-${spec}`;
+      pnRef = '형식: N90-[품목코드]-[규격4자리]';
+
     } else if (BOLT_GROUP[g]) {
-      // N[91~9W]-[종류4]-[외경5,6]-[길이7,8]-[나사산9]-[재질10]
-      const bType = document.getElementById('pn-bolt-type').value.toUpperCase().substring(0,1);
-      const bDia  = document.getElementById('pn-bolt-dia').value.padStart(2,'0').substring(0,2);
-      const bLen  = document.getElementById('pn-bolt-len').value.padStart(2,'0').substring(0,2);
-      const bTap  = document.getElementById('pn-bolt-tap').value.substring(0,1);
-      const bMat  = document.getElementById('pn-bolt-mat').value;
-      pn = `N${g}-${bType||'_'}${bDia||'__'}${bLen||'__'}${bTap||'_'}${bMat||'_'}`;
+      // 볼트/너트류: N[99]-[종류][외경2][길이2][나사산][재질]
+      const bType = document.getElementById('pn-bolt-type').value.toUpperCase().substring(0,1) || '_';
+      const bDia  = (document.getElementById('pn-bolt-dia').value || '__').padStart(2,'0').substring(0,2);
+      const bLen  = (document.getElementById('pn-bolt-len').value || '__').padStart(2,'0').substring(0,2);
+      const bTap  = document.getElementById('pn-bolt-tap').value.substring(0,1) || '_';
+      const bMat  = document.getElementById('pn-bolt-mat').value || '_';
+      const body  = `${bType}${bDia}${bLen}${bTap}${bMat}`;
+      pn = `N${g}-${body}`;
+      pnRef = `형식: N[제품군]-[종류][M규격2][길이2][나사산][재질] | ${BOLT_GROUP[g]}`;
+
     } else {
-      // Standard: [특성]-[군]-[코드]-[상세형상]-[재질][개정]
+      // ★ 표준형 (11, 12 등): [특성][군]-[제품코드]-[상세형상4자리]
+      // 결과 예시: A11-A1-1011  /  P12-SA-2011
       const code   = document.getElementById('pn-code-sel').value;
-      const dItem  = document.getElementById('pn-detail-item-sel').value;
-      const dSub   = document.getElementById('pn-detail-sub-inp').value.trim().toUpperCase().substring(0,1);
+      const dItem  = document.getElementById('pn-detail-item-sel').value; // 3자리 ex) 101
+      const dSub   = document.getElementById('pn-detail-sub-inp').value.trim().toUpperCase().substring(0,1); // 1자리 ex) 1
       const mat    = document.getElementById('pn-mat-sel').value;
       const rev    = document.getElementById('pn-rev-sel').value;
-      const detail = dItem ? (dItem + (dSub || '')) : '____';
-      pn = `${char}-${g}-${code||'__'}-${detail}-${mat||'_'}${rev||'0'}`;
+
+      // 상세형상 4자리: 항목코드(3) + 하위번호(1)
+      let detail4 = '____';
+      if (dItem) {
+        detail4 = dItem + (dSub || '_');
+      }
+
+      // 핵심 품번: xxx-xx-xxxx 형식
+      pn = `${prefix}-${code||'__'}-${detail4}`;
+
+      // 재질·개정은 품번 뒤에 참고용으로 표시 (선택 시에만)
+      if (mat || rev) {
+        pnRef = `재질: ${mat||'-'} / 개정: ${rev||'0'}번째 | 전체표기: ${pn}${mat||''}${rev||'0'}`;
+      } else {
+        pnRef = '형식: [품목특성][제품군]-[제품코드]-[상세형상4자리]';
+      }
     }
+
     document.getElementById('pn-result').textContent = pn;
+    document.getElementById('pn-ref').textContent = pnRef;
     document.getElementById('pn-result-area').className = 'alert alert-success d-flex align-items-center mb-4';
   } catch(e) {
     document.getElementById('pn-result').textContent = '오류: ' + e.message;
@@ -2820,8 +2858,9 @@ function pnOnPaTypeChange() {
         <!-- 결과 표시 영역 (상단 고정) -->
         <div class="alert alert-secondary d-flex align-items-center mb-4" id="pn-result-area">
           <div class="flex-grow-1">
-            <div class="small text-muted mb-1">생성된 품번</div>
+            <div class="small text-muted mb-1">생성된 품번 <span class="text-muted">(형식: xxx-xx-xxxx)</span></div>
             <div class="fs-3 fw-bold font-monospace text-success" id="pn-result">—</div>
+            <div class="small text-muted mt-1" id="pn-ref"></div>
           </div>
           <div class="d-flex flex-column gap-2 ms-3">
             <button class="btn btn-sm btn-outline-secondary" onclick="pnCopy()"><i class="bi bi-clipboard me-1"></i>복사</button>
