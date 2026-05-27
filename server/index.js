@@ -326,6 +326,50 @@ app.get('/api/compare/export', async (req, res) => {
 });
 
 // ======================================================
+// PARTS SEARCH  (부품 검색 - BOM 탭용)
+// ======================================================
+app.get('/api/parts/search', async (req, res) => {
+  try {
+    const { q = '' } = req.query;
+    if (!q.trim()) return res.json([]);
+
+    // part_number OR part_name 중 하나라도 포함
+    const { data: parts, error } = await supabase
+      .from('parts')
+      .select('*')
+      .or(`part_number.ilike.%${q}%,part_name.ilike.%${q}%`)
+      .order('part_number')
+      .limit(200);
+    if (error) throw error;
+
+    // 각 부품이 어떤 완제품에 사용되는지 조회
+    const results = await Promise.all((parts || []).map(async part => {
+      const { data: usage } = await supabase
+        .from('bom_items')
+        .select('quantity, products(id, part_number, name, product_group)')
+        .eq('part_id', part.id);
+      return {
+        id: part.id,
+        part_number: part.part_number,
+        part_name: part.part_name,
+        spec: part.spec || '',
+        unit: part.unit || 'EA',
+        used_in: (usage || [])
+          .filter(r => r.products)
+          .map(r => ({
+            product_id: r.products.id,
+            part_number: r.products.part_number,
+            name: r.products.name,
+            product_group: r.products.product_group,
+            quantity: r.quantity,
+          })),
+      };
+    }));
+    res.json(results);
+  } catch (e) { res.status(500).json({ detail: e.message }); }
+});
+
+// ======================================================
 // BULK EDIT
 // ======================================================
 app.get('/api/bulk-edit/search', async (req, res) => {

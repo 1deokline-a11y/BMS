@@ -310,6 +310,34 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
   </div>
 
 
+  <!-- 부품 검색 결과 (검색어 입력 시 표시) -->
+  <div id="part-search-result" class="card mb-3" style="display:none">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+      <span class="fw-semibold">
+        <i class="bi bi-puzzle-fill me-1 text-warning"></i>부품 검색 결과
+        <span class="badge bg-warning text-dark ms-1" id="part-search-count">0</span>
+        <span class="text-muted fw-normal small ms-2" id="part-search-term"></span>
+      </span>
+      <button class="btn btn-sm btn-outline-secondary py-0" onclick="document.getElementById('part-search-result').style.display='none'">
+        <i class="bi bi-x"></i> 닫기
+      </button>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:160px">품번</th>
+            <th>품명</th>
+            <th style="width:180px">규격</th>
+            <th style="width:55px">단위</th>
+            <th>사용 제품</th>
+          </tr>
+        </thead>
+        <tbody id="part-search-body"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- 선택된 BOM 상세 (인라인) -->
   <div id="bom-inline-detail" style="display:none">
     <div class="card mb-2">
@@ -1589,11 +1617,61 @@ async function loadProducts() {
     const search = document.getElementById('filter-search').value.trim();
     let url = '/api/products?';
     if (search) url += `search=${encodeURIComponent(search)}&`;
-    const data = await api('GET', url);
+
+    // 완제품 + 부품 동시 조회
+    const [data] = await Promise.all([
+      api('GET', url),
+      search ? loadPartsSearch(search) : Promise.resolve(null),
+    ]);
+    if (!search) document.getElementById('part-search-result').style.display = 'none';
+
     allProducts = data;
     prodRenderPanel();
     document.getElementById('bom-inline-detail').style.display = 'none';
   } catch (e) { toast('제품 목록 로드 실패: ' + e.message, 'danger'); }
+}
+
+async function loadPartsSearch(q) {
+  try {
+    const parts = await api('GET', `/api/parts/search?q=${encodeURIComponent(q)}`);
+    const container = document.getElementById('part-search-result');
+    const termEl = document.getElementById('part-search-term');
+
+    if (!parts || parts.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+
+    document.getElementById('part-search-count').textContent = parts.length;
+    termEl.textContent = `"${q}" 검색`;
+
+    document.getElementById('part-search-body').innerHTML = parts.map(p => {
+      const usedIn = (p.used_in || []);
+      const usedBadges = usedIn.length
+        ? usedIn.map(u =>
+            `<span class="badge bg-light text-primary border me-1 mb-1"
+              style="cursor:pointer;font-size:0.78em"
+              title="${u.name} (수량: ${u.quantity})"
+              onclick="openBOM(${u.product_id})">
+              ${u.part_number}
+            </span>`).join('')
+        : '<span class="text-muted small">—</span>';
+
+      const specTxt = p.spec ? `<span class="text-muted small">${p.spec}</span>` : '<span class="text-muted">—</span>';
+
+      return `<tr>
+        <td class="fw-semibold font-monospace" style="color:#b45309">${p.part_number || '—'}</td>
+        <td>${p.part_name || '—'}</td>
+        <td>${specTxt}</td>
+        <td class="text-muted small">${p.unit || 'EA'}</td>
+        <td>${usedBadges}</td>
+      </tr>`;
+    }).join('');
+
+    container.style.display = '';
+  } catch (e) {
+    console.warn('부품 검색 오류:', e.message);
+  }
 }
 
 function buildProductRemarks(p) {
