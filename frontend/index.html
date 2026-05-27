@@ -729,7 +729,10 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 <div class="page" id="page-new-bom">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div class="page-title mb-0"><i class="bi bi-plus-circle me-2"></i>신규 BOM 생성 (F4)</div>
-    <div>
+    <div class="d-flex gap-2 align-items-center">
+      <button class="btn btn-outline-success" onclick="openPNModal()">
+        <i class="bi bi-123 me-1"></i>품번 채번
+      </button>
       <input type="file" id="new-bom-import-input" accept=".xlsx" multiple style="display:none" onchange="importFromNewBOM(this)">
       <button class="btn btn-outline-primary" onclick="document.getElementById('new-bom-import-input').click()">
         <i class="bi bi-upload me-1"></i>엑셀 임포트
@@ -2547,6 +2550,253 @@ function renderImportResults(results) {
   if (ok > 0) toast(`✅ ${ok}개 파일 임포트 완료`, 'success');
 }
 
+// ===================== 품번 채번 =====================
+const PN_CHAR = {
+  'A': '완제품(조립완제품)', 'P': '부품', 'S': '반제품',
+  'N': '표준부품(규격품)', 'M': '금형(MOLD)', 'O': '외주품'
+};
+const PN_GROUP = [
+  ['11','광접속함체'],['12','광단자함'],['13','IJP 박스'],
+  ['14','OJC류/광감쇄기/어댑터류'],['15','현장조립형광커넥터(FAOC)'],
+  ['16','광접속자'],['17','ABF'],['18','수동소자류'],
+  ['19','케이블'],['20','광 스플리터'],
+  ['31','OFD'],['32','INDOOR RACK'],['33','OUTDOOR RACK'],
+  ['34','단자류'],['35','랜관련제품'],['36','측정기류'],
+  ['37','광공구 자재류'],['38','공기구 및 기타'],['39','AJP관련제품'],
+  ['40','신규제품'],['41','포설장비'],['42','광덕트'],['45','외주품'],
+  ['51','PON-PM'],['52','SODN'],
+  ['80','스티커'],['81','선번표(스티커 아닌)'],['90','규격없는 구매품'],
+  ['91','리벳'],['92','PG 커넥터'],['93','오링'],['94','스프링'],
+  ['95','와셔'],['96','인서트 너트'],['97','너트'],['98','2종 볼트'],
+  ['99','볼트'],['9A','직결스크류'],['9W','렌치볼트']
+];
+const PN_CODE = {
+  '11': [
+    ['A1','미니 함체 (BOFC-A1)'],['A2','세경 함체 (BOFC-A2)'],
+    ['B1','소형 함체 12C (BOFC-B1)'],['B2','소형 함체 24C (BOFC-B2)'],['B4','16형 함체 (BOFC-B4)'],
+    ['C1','19형 함체 (BOFC-C1)'],['C2','24형 함체 (BOFC-C2)'],
+    ['D1','27형 함체 (BOFC-D1)'],['D2','34형 함체 (BOFC-D2)'],
+    ['M1','미니 마이크로덕트 함체 (ZOFC-A1)'],
+    ['G1','중형 무볼트 함체 (ZOFC-B1)'],['G2','소형 무볼트 함체 (ZOFC-B2)'],
+    ['K1','대형 무볼트 함체 (ZOFC-C1)'],['I2','중간분기 함체 (ZOFC-D2)'],
+    ['T1','광탭 16포트'],['T2','광탭 8포트'],
+    ['E2','돔형 함체 36C'],['E3','돔형 함체 72C'],['F5','돔형 함체 144C'],
+    ['N3','돔형 함체 288C'],['NC','돔형 함체 NC'],['ND','돔형 함체 ND'],
+    ['S1','S1형 함체'],['S2','S2형 함체'],['L1','G2 CLOSURE'],['L3','L3형 돔']
+  ],
+  '12': [
+    ['SA','OTP-A형'],['SB','OTP-B형'],['SC','OTP-C형'],['SD','OTP-D형'],['SQ','32포트형'],
+    ['NA','NAP-NA (블랙 일체형)'],['NB','NAP-NB (블랙 분리형)'],
+    ['MK','KT 5G 모듈 단자함'],['ML','LG 5G 모듈 단자함'],['MT','SK 5G S-MUX'],
+    ['MS','SK향 통합형'],['MA','KT 통합A형'],
+    ['WD','광탭 분기형 (OTP-SL3)'],['WT','광탭 종단형 (OTP-SL2)'],['SS','광탭 초소형 (OTP-SL1)'],
+    ['A1','IJP 광단자함'],['WA','WA형 광단자함']
+  ]
+};
+// 상세형상 카테고리
+const PN_DETAIL = {
+  '1xx 외부': [
+    ['101','상판'],['102','하판'],['103','브라켓'],['104','잠금 클립'],
+    ['105','클립 고정 스프링'],['106','고정판'],['107','취부대 (플라스틱)'],
+    ['108','하판 커버'],['109','인입구 마개'],['110','어댑터 취부대 (금속)'],
+    ['111','전방 커버'],['112','지지대'],['113','걸이'],['114','뒷판'],
+    ['115','인입구 부품'],['116','클램프']
+  ],
+  '2xx 내부': [
+    ['201','가스켓'],['202','케이블 그로멧'],['203','케이블 홀더'],['204','케이블고정대'],
+    ['205','전선홀더'],['206','트레이(Splice Holder)'],['207','트레이 커버 시트'],
+    ['208','트레이 덮개'],['209','트레이 OZ'],['210','트레이 조립구'],
+    ['211','트레이 스토퍼'],['213','인입구 마개 (내부)'],['214','지지대 (내부)'],
+    ['216','인장선 고정대'],['217','중간판'],['218','접지바'],
+    ['219','어댑터 취부대'],['230','PCB'],['238','PIN (사출)'],
+    ['242','슬라이드 바'],['243','보조판'],['250','모듈 취부대'],
+    ['252','오링 (사출)'],['253','점퍼 보호 키트']
+  ],
+  '3xx 공용': [
+    ['303','힌지'],['304','클램프'],['305','사용설명서'],
+    ['307','PACKAGING FILM (TELEDOTI)'],['308','PACKAGING FILM'],
+    ['309','트레이 고무판'],['310','인장선 고정판'],['311','스패츌라']
+  ],
+  '4xx 현장조립': [
+    ['401','HOUSING'],['402','DUST CAP'],['403','BODY'],['404','BOOT'],
+    ['405','CABLE CLAMP'],['406','VG BODY'],['407','VG COVER'],['408','VG HOLDER'],
+    ['409','HOLDING SLEEVE'],['410','FERRULE RING'],['411','FERRULE SLEEVE'],
+    ['412','MATCHING GEL'],['413','LABEL'],
+    ['417','OPTICAL CABLE 0.9mm'],['418','OPTICAL CABLE 2.0mm'],['419','OPTICAL CABLE 3.0mm'],
+    ['420','DISTRIBUTION CABLE'],['421','STOPPER'],['422','HOUSING KIT'],
+    ['423','FLANGE'],['424','PLUG FLAME'],['425','LENGTH JIG'],['426','MULTICORE CABLE']
+  ]
+};
+const PN_MATERIAL = [
+  ['N','철/니켈도금'],['Z','아연도금'],['S','SUS'],['C','CR판'],['B','BRASS'],
+  ['I','사출물'],['F','STEEL'],['E','기타'],['A','ASSY/SUB ASSY'],['P','SIPC']
+];
+// OJC 코드표
+const OJC_TYPE   = [['A','Simplex 0.9mm'],['B','Simplex 3.0mm'],['C','Duplex'],['D','MOJC 0.9mm'],['E','MOJC 2.0mm'],['F','Pigtail 0.9mm'],['G','Pigtail 2.0mm'],['H','Pigtail 3.0mm'],['J','리본'],['K','Drop 3.0mm'],['L','Drop 5.0mm'],['M','인입광']];
+const OJC_CORE   = [['A','G652D'],['B','G657A1'],['C','G657A2'],['D','G657B3'],['E','OM1'],['F','OM2'],['G','OM3'],['H','OM4'],['I','OM5']];
+const OJC_COLOR  = [['0','PVC YELLOW'],['1','PVC BLUE'],['2','PVC AQUA'],['3','PVC BLACK'],['4','PVC GREEN'],['B','LSZH BLACK'],['C','LSZH YELLOW'],['D','PU YELLOW'],['E','LSZH WHITE'],['F','LSZH ORANGE']];
+const OJC_CONN   = [['0','SC/PC'],['1','SC/APC'],['2','SC/PC+CLIP'],['3','SC/APC+CLIP'],['4','LC/PC'],['5','LC/APC'],['8','FC/PC'],['9','FC/APC'],['F','MPO-A'],['G','MPO-B'],['X','없음']];
+const OJC_MARK   = [['N','NON'],['K','KT'],['L','LG'],['O','고려오트론'],['P','포앤티'],['Z','수출'],['X','케이블사급']];
+// 수동소자(18) 코드표
+const PA_TYPE    = [['FA','감쇄기 FC'],['LA','감쇄기 LC'],['SA','감쇄기 SC'],['SC','어댑터 SC/SC'],['FC','어댑터 FC/FC'],['LC','어댑터 LC/LC'],['MU','어댑터 MU/MU'],['MT','어댑터 MTRJ'],['MP','어댑터 MPO'],['H1','하이브리드 1'],['H2','하이브리드 2'],['H3','하이브리드 3'],['S2','SC 2P 블록'],['S6','SC 6P 블록'],['L2','LC 2P 블록'],['L4','LC 4P 블록'],['L6','LC 6P 블록']];
+const PA_POLISH  = [['A','PC'],['B','APC'],['C','FLAT'],['D','PC&APC 겸용']];
+const PA_SHUTTER = [['1','Without Shutter'],['2','With Shutter']];
+const PA_SLEEVE  = [['1','지르코니아'],['2','황동'],['3','사출']];
+const PA_PIN     = [['1','Without 철핀'],['2','With 철핀']];
+const PA_PORT    = [['1','1 Port'],['2','2 Port'],['3','4 Port'],['4','6 Port']];
+const PA_DB      = [['A','1dB'],['B','2dB'],['C','3dB'],['D','5dB'],['E','10dB'],['F','15dB'],['G','20dB']];
+// 규격구매품(90) 품목
+const N90_ITEM   = [['01','절연테이프'],['03','케이블타이'],['05','보호튜브'],['12','벨크로'],['13','열수축 슬리브'],['14','스파이럴 슬리브'],['17','지퍼백'],['19','와이어 새들'],['24','열수축관'],['29','페롤'],['60','FOAM TAPE'],['PB','PACKAGE BOX']];
+// 볼트너트 품목 코드
+const BOLT_GROUP = {'91':'리벳','92':'PG 커넥터','93':'오링','94':'스프링','95':'와셔','96':'인서트 너트','97':'너트','98':'2종 볼트','99':'볼트','9A':'직결스크류','9W':'렌치볼트'};
+const BOLT_MAT   = [['N','철/니켈도금'],['Z','아연도금'],['S','SUS'],['B','BRASS'],['F','STEEL']];
+
+let pnState = {};
+
+function openPNModal(targetFieldId) {
+  pnState = { targetField: targetFieldId || 'new-part-number' };
+  // reset
+  document.getElementById('pn-char-group').querySelectorAll('input').forEach(r => r.checked = false);
+  document.getElementById('pn-group-sel').value = '';
+  document.getElementById('pn-result').textContent = '-';
+  document.getElementById('pn-result-area').className = 'alert alert-secondary d-flex align-items-center mb-4';
+  _pnShowSection('none');
+  const modal = new bootstrap.Modal(document.getElementById('pnModal'));
+  modal.show();
+}
+
+function _pnShowSection(sec) {
+  ['pn-std-section','pn-ojc-section','pn-passive-section','pn-n90-section','pn-bolt-section'].forEach(id => {
+    document.getElementById(id).style.display = (id === sec) ? '' : 'none';
+  });
+}
+
+function pnOnGroupChange() {
+  const g = document.getElementById('pn-group-sel').value;
+  if (!g) { _pnShowSection('none'); pnBuildResult(); return; }
+  if (g === '14') { _pnShowSection('pn-ojc-section'); }
+  else if (g === '18') { _pnShowSection('pn-passive-section'); }
+  else if (g === '90') { _pnShowSection('pn-n90-section'); }
+  else if (['91','92','93','94','95','96','97','98','99','9A','9W'].includes(g)) { _pnShowSection('pn-bolt-section'); }
+  else {
+    _pnShowSection('pn-std-section');
+    // 제품코드 옵션 구성
+    const sel = document.getElementById('pn-code-sel');
+    sel.innerHTML = '<option value="">-- 선택 --</option>';
+    const codes = PN_CODE[g] || [];
+    codes.forEach(([c, lbl]) => sel.add(new Option(`${c} — ${lbl}`, c)));
+    sel.value = '';
+    // 상세형상 카테고리 초기화
+    const catSel = document.getElementById('pn-detail-cat-sel');
+    catSel.innerHTML = '<option value="">-- 선택 --</option>';
+    Object.keys(PN_DETAIL).forEach(cat => catSel.add(new Option(cat, cat)));
+    document.getElementById('pn-detail-item-sel').innerHTML = '<option value="">-- 선택 --</option>';
+    document.getElementById('pn-detail-sub-inp').value = '';
+  }
+  pnBuildResult();
+}
+
+function pnOnDetailCatChange() {
+  const cat = document.getElementById('pn-detail-cat-sel').value;
+  const itemSel = document.getElementById('pn-detail-item-sel');
+  itemSel.innerHTML = '<option value="">-- 선택 --</option>';
+  if (cat && PN_DETAIL[cat]) {
+    PN_DETAIL[cat].forEach(([c, lbl]) => itemSel.add(new Option(`${c} — ${lbl}`, c)));
+  }
+  document.getElementById('pn-detail-sub-inp').value = '';
+  pnBuildResult();
+}
+
+function pnBuildResult() {
+  try {
+    const char = document.querySelector('#pn-char-group input:checked')?.value || '';
+    const g = document.getElementById('pn-group-sel').value;
+    let pn = '';
+    if (!char || !g) { document.getElementById('pn-result').textContent = '— (품목특성·제품군 선택 필요)'; return; }
+
+    if (g === '14') {
+      // OJC: [특성]-14-[종류4]-[코아5]-[심선수6]-[재질7]-[커넥터1:8]-[커넥터2:9]-[길이10~12]-[마킹13]
+      const ojcType = document.getElementById('pn-ojc-type').value;
+      const ojcCore = document.getElementById('pn-ojc-core').value;
+      const ojcCount= document.getElementById('pn-ojc-count').value.padStart(2,'0').replace(/\D/g,'') || '__';
+      const ojcCol  = document.getElementById('pn-ojc-color').value;
+      const ojcC1   = document.getElementById('pn-ojc-conn1').value;
+      const ojcC2   = document.getElementById('pn-ojc-conn2').value;
+      const ojcLen  = document.getElementById('pn-ojc-len').value || '___';
+      const ojcMark = document.getElementById('pn-ojc-mark').value;
+      pn = `${char}-14-${ojcType||'_'}${ojcCore||'_'}${ojcCount||'__'}${ojcCol||'_'}${ojcC1||'_'}${ojcC2||'_'}-${ojcLen}-${ojcMark||'_'}`;
+    } else if (g === '18') {
+      // 수동소자: [특성]-18-[종류4,5]-[연마면6]-[셔터7]-[슬리브8]-[철핀9]-[포트수10]
+      const paType   = document.getElementById('pn-pa-type').value;
+      const isAtten  = ['FA','LA','SA'].includes(paType);
+      if (isAtten) {
+        const paDB = document.getElementById('pn-pa-db').value;
+        pn = `${char}-18-${paType||'__'}${paDB||'_'}`;
+      } else {
+        const paPolish = document.getElementById('pn-pa-polish').value;
+        const paShut   = document.getElementById('pn-pa-shutter').value;
+        const paSleeve = document.getElementById('pn-pa-sleeve').value;
+        const paPin    = document.getElementById('pn-pa-pin').value;
+        const paPort   = document.getElementById('pn-pa-port').value;
+        pn = `${char}-18-${paType||'__'}${paPolish||'_'}${paShut||'_'}${paSleeve||'_'}${paPin||'_'}${paPort||'_'}`;
+      }
+    } else if (g === '90') {
+      // N90-[품목4,5]-[규격6~9]
+      const item = document.getElementById('pn-n90-item').value;
+      const spec = document.getElementById('pn-n90-spec').value.replace(/\s/g,'').toUpperCase().substring(0,4);
+      pn = `N90-${item||'__'}-${spec||'____'}`;
+    } else if (BOLT_GROUP[g]) {
+      // N[91~9W]-[종류4]-[외경5,6]-[길이7,8]-[나사산9]-[재질10]
+      const bType = document.getElementById('pn-bolt-type').value.toUpperCase().substring(0,1);
+      const bDia  = document.getElementById('pn-bolt-dia').value.padStart(2,'0').substring(0,2);
+      const bLen  = document.getElementById('pn-bolt-len').value.padStart(2,'0').substring(0,2);
+      const bTap  = document.getElementById('pn-bolt-tap').value.substring(0,1);
+      const bMat  = document.getElementById('pn-bolt-mat').value;
+      pn = `N${g}-${bType||'_'}${bDia||'__'}${bLen||'__'}${bTap||'_'}${bMat||'_'}`;
+    } else {
+      // Standard: [특성]-[군]-[코드]-[상세형상]-[재질][개정]
+      const code   = document.getElementById('pn-code-sel').value;
+      const dItem  = document.getElementById('pn-detail-item-sel').value;
+      const dSub   = document.getElementById('pn-detail-sub-inp').value.trim().toUpperCase().substring(0,1);
+      const mat    = document.getElementById('pn-mat-sel').value;
+      const rev    = document.getElementById('pn-rev-sel').value;
+      const detail = dItem ? (dItem + (dSub || '')) : '____';
+      pn = `${char}-${g}-${code||'__'}-${detail}-${mat||'_'}${rev||'0'}`;
+    }
+    document.getElementById('pn-result').textContent = pn;
+    document.getElementById('pn-result-area').className = 'alert alert-success d-flex align-items-center mb-4';
+  } catch(e) {
+    document.getElementById('pn-result').textContent = '오류: ' + e.message;
+  }
+}
+
+function pnCopy() {
+  const txt = document.getElementById('pn-result').textContent;
+  if (!txt || txt === '-') return;
+  navigator.clipboard.writeText(txt).then(() => toast('품번 복사됨: ' + txt, 'success'));
+}
+
+function pnApply() {
+  const txt = document.getElementById('pn-result').textContent;
+  if (!txt || txt.startsWith('—') || txt.startsWith('오류')) { toast('완성된 품번을 먼저 생성해주세요', 'warning'); return; }
+  const targetId = pnState.targetField || 'new-part-number';
+  const el = document.getElementById(targetId);
+  if (el) {
+    el.value = txt;
+    el.dispatchEvent(new Event('input'));
+    toast('품번 적용: ' + txt, 'success');
+  }
+  bootstrap.Modal.getInstance(document.getElementById('pnModal'))?.hide();
+}
+
+function pnOnPaTypeChange() {
+  const t = document.getElementById('pn-pa-type').value;
+  const isAtten = ['FA','LA','SA'].includes(t);
+  document.getElementById('pn-pa-atten-row').style.display = isAtten ? '' : 'none';
+  document.getElementById('pn-pa-adapter-rows').style.display = isAtten ? 'none' : '';
+  pnBuildResult();
+}
+
 // ===================== Init =====================
 (() => {
   const savedMode = localStorage.getItem('viewMode') || 'pc';
@@ -2556,5 +2806,474 @@ function renderImportResults(results) {
   navigateTo(initPage, {}, false);
 })();
 </script>
+
+<!-- ====== 품번 채번 Modal ====== -->
+<div class="modal fade" id="pnModal" tabindex="-1" aria-labelledby="pnModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-success bg-opacity-10">
+        <h5 class="modal-title fw-bold" id="pnModalLabel"><i class="bi bi-123 me-2 text-success"></i>품번 채번</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+
+        <!-- 결과 표시 영역 (상단 고정) -->
+        <div class="alert alert-secondary d-flex align-items-center mb-4" id="pn-result-area">
+          <div class="flex-grow-1">
+            <div class="small text-muted mb-1">생성된 품번</div>
+            <div class="fs-3 fw-bold font-monospace text-success" id="pn-result">—</div>
+          </div>
+          <div class="d-flex flex-column gap-2 ms-3">
+            <button class="btn btn-sm btn-outline-secondary" onclick="pnCopy()"><i class="bi bi-clipboard me-1"></i>복사</button>
+            <button class="btn btn-sm btn-success" onclick="pnApply()"><i class="bi bi-check2-circle me-1"></i>품번 적용</button>
+          </div>
+        </div>
+
+        <div class="row g-3">
+
+          <!-- Step 1: 품목특성 -->
+          <div class="col-12">
+            <label class="form-label fw-bold text-primary">① 품목특성</label>
+            <div class="d-flex gap-2 flex-wrap" id="pn-char-group">
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" type="radio" name="pn-char" id="pnCA" value="A" onchange="pnBuildResult()">
+                <label class="form-check-label" for="pnCA"><span class="badge bg-primary me-1">A</span>완제품</label>
+              </div>
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" type="radio" name="pn-char" id="pnCP" value="P" onchange="pnBuildResult()">
+                <label class="form-check-label" for="pnCP"><span class="badge bg-secondary me-1">P</span>부품</label>
+              </div>
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" type="radio" name="pn-char" id="pnCS" value="S" onchange="pnBuildResult()">
+                <label class="form-check-label" for="pnCS"><span class="badge bg-info me-1">S</span>반제품</label>
+              </div>
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" type="radio" name="pn-char" id="pnCN" value="N" onchange="pnBuildResult()">
+                <label class="form-check-label" for="pnCN"><span class="badge bg-dark me-1">N</span>표준부품</label>
+              </div>
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" type="radio" name="pn-char" id="pnCM" value="M" onchange="pnBuildResult()">
+                <label class="form-check-label" for="pnCM"><span class="badge bg-warning text-dark me-1">M</span>금형</label>
+              </div>
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" type="radio" name="pn-char" id="pnCO" value="O" onchange="pnBuildResult()">
+                <label class="form-check-label" for="pnCO"><span class="badge bg-danger me-1">O</span>외주품</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: 제품군 -->
+          <div class="col-md-6">
+            <label class="form-label fw-bold text-primary" for="pn-group-sel">② 제품군</label>
+            <select class="form-select form-select-sm" id="pn-group-sel" onchange="pnOnGroupChange()">
+              <option value="">-- 선택 --</option>
+              <optgroup label="주요 자사 제품">
+                <option value="11">11 — 광접속함체</option>
+                <option value="12">12 — 광단자함</option>
+                <option value="13">13 — IJP 박스</option>
+                <option value="14">14 — OJC류/광감쇄기/어댑터류</option>
+                <option value="15">15 — 현장조립형광커넥터(FAOC)</option>
+                <option value="16">16 — 광접속자</option>
+                <option value="17">17 — ABF</option>
+                <option value="18">18 — 수동소자류</option>
+                <option value="19">19 — 케이블</option>
+                <option value="20">20 — 광 스플리터</option>
+              </optgroup>
+              <optgroup label="기타 제품">
+                <option value="31">31 — OFD</option>
+                <option value="32">32 — INDOOR RACK</option>
+                <option value="33">33 — OUTDOOR RACK</option>
+                <option value="34">34 — 단자류</option>
+                <option value="35">35 — 랜관련제품</option>
+                <option value="36">36 — 측정기류</option>
+                <option value="37">37 — 광공구 자재류</option>
+                <option value="38">38 — 공기구 및 기타</option>
+                <option value="39">39 — AJP관련제품</option>
+                <option value="40">40 — 신규제품</option>
+                <option value="41">41 — 포설장비</option>
+                <option value="42">42 — 광덕트</option>
+                <option value="45">45 — 외주품</option>
+                <option value="51">51 — PON-PM</option>
+                <option value="52">52 — SODN</option>
+                <option value="80">80 — 스티커</option>
+                <option value="81">81 — 선번표</option>
+              </optgroup>
+              <optgroup label="규격/표준 구매품">
+                <option value="90">90 — 규격없는 구매품</option>
+                <option value="91">91 — 리벳</option>
+                <option value="92">92 — PG 커넥터</option>
+                <option value="93">93 — 오링</option>
+                <option value="94">94 — 스프링</option>
+                <option value="95">95 — 와셔</option>
+                <option value="96">96 — 인서트 너트</option>
+                <option value="97">97 — 너트</option>
+                <option value="98">98 — 2종 볼트</option>
+                <option value="99">99 — 볼트</option>
+                <option value="9A">9A — 직결스크류</option>
+                <option value="9W">9W — 렌치볼트</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <!-- ===== 표준형 (11, 12 등) ===== -->
+          <div id="pn-std-section" style="display:none" class="col-12">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label fw-bold text-primary" for="pn-code-sel">③ 제품코드 (4,5자리)</label>
+                <select class="form-select form-select-sm" id="pn-code-sel" onchange="pnBuildResult()">
+                  <option value="">-- 선택 --</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-bold text-primary">④ 상세형상 (6~9자리)</label>
+                <div class="row g-2 align-items-end">
+                  <div class="col-md-4">
+                    <label class="form-label small text-muted">분류</label>
+                    <select class="form-select form-select-sm" id="pn-detail-cat-sel" onchange="pnOnDetailCatChange()">
+                      <option value="">-- 분류 선택 --</option>
+                    </select>
+                  </div>
+                  <div class="col-md-5">
+                    <label class="form-label small text-muted">부품 항목</label>
+                    <select class="form-select form-select-sm" id="pn-detail-item-sel" onchange="pnBuildResult()">
+                      <option value="">-- 항목 선택 --</option>
+                    </select>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label small text-muted">하위번호 (1자리, 예: 1 2 A)</label>
+                    <input type="text" class="form-control form-control-sm font-monospace" id="pn-detail-sub-inp" maxlength="1" placeholder="1" oninput="pnBuildResult()">
+                  </div>
+                </div>
+                <div class="form-text">예: 상판→101+하위1 → <code>1011</code> / 가스켓→201+하위1 → <code>2011</code></div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold text-primary">⑤ 재질 (10자리)</label>
+                <select class="form-select form-select-sm" id="pn-mat-sel" onchange="pnBuildResult()">
+                  <option value="">-- 선택 --</option>
+                  <option value="N">N — 철/니켈도금</option>
+                  <option value="Z">Z — 아연도금</option>
+                  <option value="S">S — SUS</option>
+                  <option value="C">C — CR판</option>
+                  <option value="B">B — BRASS</option>
+                  <option value="I">I — 사출물</option>
+                  <option value="F">F — STEEL</option>
+                  <option value="E">E — 기타</option>
+                  <option value="A">A — ASSY/SUB ASSY</option>
+                  <option value="P">P — SIPC</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-bold text-primary">⑥ 개정번호 (11자리)</label>
+                <select class="form-select form-select-sm" id="pn-rev-sel" onchange="pnBuildResult()">
+                  <option value="0">0 — 1번째 (최초)</option>
+                  <option value="1">1 — 2번째</option>
+                  <option value="2">2 — 3번째</option>
+                  <option value="3">3 — 4번째</option>
+                  <option value="4">4 — 5번째</option>
+                  <option value="5">5 — 6번째</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== OJC (14) ===== -->
+          <div id="pn-ojc-section" style="display:none" class="col-12">
+            <div class="alert alert-info py-2 mb-3 small">
+              <strong>OJC 품번 구조:</strong> <code>[특성]-14-[종류][코아][심선수][색상][커넥터1][커넥터2]-[길이]-[마킹]</code>
+            </div>
+            <div class="row g-2">
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">③ 종류 (4자리)</label>
+                <select class="form-select form-select-sm" id="pn-ojc-type" onchange="pnBuildResult()">
+                  <option value="">선택</option>
+                  <option value="A">A — Simplex 0.9mm</option>
+                  <option value="B">B — Simplex 3.0mm</option>
+                  <option value="C">C — Duplex</option>
+                  <option value="D">D — MOJC 0.9mm</option>
+                  <option value="E">E — MOJC 2.0mm</option>
+                  <option value="F">F — Pigtail 0.9mm</option>
+                  <option value="G">G — Pigtail 2.0mm</option>
+                  <option value="H">H — Pigtail 3.0mm</option>
+                  <option value="J">J — 리본</option>
+                  <option value="K">K — Drop 3.0mm</option>
+                  <option value="L">L — Drop 5.0mm</option>
+                  <option value="M">M — 인입광</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">④ 코아종류 (5자리)</label>
+                <select class="form-select form-select-sm" id="pn-ojc-core" onchange="pnBuildResult()">
+                  <option value="">선택</option>
+                  <option value="A">A — G652D</option>
+                  <option value="B">B — G657A1</option>
+                  <option value="C">C — G657A2</option>
+                  <option value="D">D — G657B3</option>
+                  <option value="E">E — OM1</option>
+                  <option value="F">F — OM2</option>
+                  <option value="G">G — OM3</option>
+                  <option value="H">H — OM4</option>
+                  <option value="I">I — OM5</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small fw-bold">⑤ 심선수 (6자리)</label>
+                <input type="number" class="form-control form-control-sm" id="pn-ojc-count" min="1" max="48" placeholder="1~48" oninput="pnBuildResult()">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">⑥ 외피색상/재질 (7자리)</label>
+                <select class="form-select form-select-sm" id="pn-ojc-color" onchange="pnBuildResult()">
+                  <option value="">선택</option>
+                  <option value="0">0 — PVC YELLOW</option>
+                  <option value="1">1 — PVC BLUE</option>
+                  <option value="2">2 — PVC AQUA</option>
+                  <option value="3">3 — PVC BLACK</option>
+                  <option value="4">4 — PVC GREEN</option>
+                  <option value="B">B — LSZH BLACK</option>
+                  <option value="C">C — LSZH YELLOW</option>
+                  <option value="D">D — PU YELLOW</option>
+                  <option value="E">E — LSZH WHITE</option>
+                  <option value="F">F — LSZH ORANGE</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">⑦ 커넥터1 (8자리)</label>
+                <select class="form-select form-select-sm" id="pn-ojc-conn1" onchange="pnBuildResult()">
+                  <option value="">선택</option>
+                  <option value="0">0 — SC/PC</option>
+                  <option value="1">1 — SC/APC</option>
+                  <option value="2">2 — SC/PC+CLIP</option>
+                  <option value="3">3 — SC/APC+CLIP</option>
+                  <option value="4">4 — LC/PC</option>
+                  <option value="5">5 — LC/APC</option>
+                  <option value="8">8 — FC/PC</option>
+                  <option value="9">9 — FC/APC</option>
+                  <option value="F">F — MPO-A</option>
+                  <option value="G">G — MPO-B</option>
+                  <option value="X">X — 없음</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">⑧ 커넥터2 (9자리)</label>
+                <select class="form-select form-select-sm" id="pn-ojc-conn2" onchange="pnBuildResult()">
+                  <option value="">선택</option>
+                  <option value="0">0 — SC/PC</option>
+                  <option value="1">1 — SC/APC</option>
+                  <option value="2">2 — SC/PC+CLIP</option>
+                  <option value="3">3 — SC/APC+CLIP</option>
+                  <option value="4">4 — LC/PC</option>
+                  <option value="5">5 — LC/APC</option>
+                  <option value="8">8 — FC/PC</option>
+                  <option value="9">9 — FC/APC</option>
+                  <option value="F">F — MPO-A</option>
+                  <option value="G">G — MPO-B</option>
+                  <option value="X">X — 없음</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small fw-bold">⑨ 길이 (10~12자리)</label>
+                <input type="text" class="form-control form-control-sm font-monospace" id="pn-ojc-len" maxlength="3" placeholder="예: 005 (=5m)" oninput="pnBuildResult()">
+                <div class="form-text">001=1m, 005=5m, 010=10m, 050=50m</div>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">⑩ 마킹 (13자리)</label>
+                <select class="form-select form-select-sm" id="pn-ojc-mark" onchange="pnBuildResult()">
+                  <option value="">선택</option>
+                  <option value="N">N — NON</option>
+                  <option value="K">K — KT</option>
+                  <option value="L">L — LG</option>
+                  <option value="O">O — 고려오트론</option>
+                  <option value="P">P — 포앤티</option>
+                  <option value="Z">Z — 수출</option>
+                  <option value="X">X — 케이블사급</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== 수동소자 (18) ===== -->
+          <div id="pn-passive-section" style="display:none" class="col-12">
+            <div class="alert alert-info py-2 mb-3 small">
+              <strong>수동소자 구조:</strong> 어댑터 <code>[특성]-18-[종류][연마면][셔터][슬리브][철핀][포트수]</code> / 감쇄기 <code>[특성]-18-[종류][dB값]</code>
+            </div>
+            <div class="row g-2">
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">③ 소자종류 (4,5자리)</label>
+                <select class="form-select form-select-sm" id="pn-pa-type" onchange="pnOnPaTypeChange()">
+                  <option value="">선택</option>
+                  <optgroup label="감쇄기">
+                    <option value="FA">FA — 감쇄기 FC</option>
+                    <option value="LA">LA — 감쇄기 LC</option>
+                    <option value="SA">SA — 감쇄기 SC</option>
+                  </optgroup>
+                  <optgroup label="어댑터">
+                    <option value="SC">SC — SC/SC 어댑터</option>
+                    <option value="FC">FC — FC/FC 어댑터</option>
+                    <option value="LC">LC — LC/LC 어댑터</option>
+                    <option value="MU">MU — MU/MU 어댑터</option>
+                    <option value="MT">MT — MTRJ 어댑터</option>
+                    <option value="MP">MP — MPO 어댑터</option>
+                  </optgroup>
+                  <optgroup label="하이브리드">
+                    <option value="H1">H1 — 하이브리드 1</option>
+                    <option value="H2">H2 — 하이브리드 2</option>
+                    <option value="H3">H3 — 하이브리드 3</option>
+                  </optgroup>
+                  <optgroup label="블록">
+                    <option value="S2">S2 — SC 2P 블록</option>
+                    <option value="S6">S6 — SC 6P 블록</option>
+                    <option value="L2">L2 — LC 2P 블록</option>
+                    <option value="L4">L4 — LC 4P 블록</option>
+                    <option value="L6">L6 — LC 6P 블록</option>
+                  </optgroup>
+                </select>
+              </div>
+              <!-- 감쇄기 전용 -->
+              <div id="pn-pa-atten-row" class="col-md-4" style="display:none">
+                <label class="form-label small fw-bold">④ 감쇄량 (6자리)</label>
+                <select class="form-select form-select-sm" id="pn-pa-db" onchange="pnBuildResult()">
+                  <option value="">선택</option>
+                  <option value="A">A — 1dB</option>
+                  <option value="B">B — 2dB</option>
+                  <option value="C">C — 3dB</option>
+                  <option value="D">D — 5dB</option>
+                  <option value="E">E — 10dB</option>
+                  <option value="F">F — 15dB</option>
+                  <option value="G">G — 20dB</option>
+                </select>
+              </div>
+              <!-- 어댑터 전용 -->
+              <div id="pn-pa-adapter-rows" class="col-12" style="display:none">
+                <div class="row g-2">
+                  <div class="col-md-3">
+                    <label class="form-label small fw-bold">④ 연마면 (6자리)</label>
+                    <select class="form-select form-select-sm" id="pn-pa-polish" onchange="pnBuildResult()">
+                      <option value="">선택</option>
+                      <option value="A">A — PC</option>
+                      <option value="B">B — APC</option>
+                      <option value="C">C — FLAT</option>
+                      <option value="D">D — PC&APC 겸용</option>
+                    </select>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label small fw-bold">⑤ 셔터 (7자리)</label>
+                    <select class="form-select form-select-sm" id="pn-pa-shutter" onchange="pnBuildResult()">
+                      <option value="">선택</option>
+                      <option value="1">1 — Without Shutter</option>
+                      <option value="2">2 — With Shutter</option>
+                    </select>
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label small fw-bold">⑥ 슬리브재질 (8자리)</label>
+                    <select class="form-select form-select-sm" id="pn-pa-sleeve" onchange="pnBuildResult()">
+                      <option value="">선택</option>
+                      <option value="1">1 — 지르코니아</option>
+                      <option value="2">2 — 황동</option>
+                      <option value="3">3 — 사출</option>
+                    </select>
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label small fw-bold">⑦ 철핀 (9자리)</label>
+                    <select class="form-select form-select-sm" id="pn-pa-pin" onchange="pnBuildResult()">
+                      <option value="">선택</option>
+                      <option value="1">1 — Without</option>
+                      <option value="2">2 — With</option>
+                    </select>
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label small fw-bold">⑧ 포트수 (10자리)</label>
+                    <select class="form-select form-select-sm" id="pn-pa-port" onchange="pnBuildResult()">
+                      <option value="">선택</option>
+                      <option value="1">1 — 1 Port</option>
+                      <option value="2">2 — 2 Port</option>
+                      <option value="3">3 — 4 Port</option>
+                      <option value="4">4 — 6 Port</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== 규격없는 구매품 (90) ===== -->
+          <div id="pn-n90-section" style="display:none" class="col-12">
+            <div class="alert alert-info py-2 mb-3 small">
+              <strong>규격구매품 구조:</strong> <code>N90-[품목코드2자리]-[규격4자리]</code>
+            </div>
+            <div class="row g-2">
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">③ 품목 (4,5자리)</label>
+                <select class="form-select form-select-sm" id="pn-n90-item" onchange="pnBuildResult()">
+                  <option value="">선택</option>
+                  <option value="01">01 — 절연테이프</option>
+                  <option value="03">03 — 케이블타이</option>
+                  <option value="05">05 — 보호튜브</option>
+                  <option value="12">12 — 벨크로</option>
+                  <option value="13">13 — 열수축 슬리브</option>
+                  <option value="14">14 — 스파이럴 슬리브</option>
+                  <option value="17">17 — 지퍼백</option>
+                  <option value="19">19 — 와이어 새들</option>
+                  <option value="24">24 — 열수축관</option>
+                  <option value="29">29 — 페롤</option>
+                  <option value="60">60 — FOAM TAPE</option>
+                  <option value="PB">PB — PACKAGE BOX</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">④ 규격 (6~9자리, 최대 4자리)</label>
+                <input type="text" class="form-control form-control-sm font-monospace" id="pn-n90-spec" maxlength="4" placeholder="예: 0025 (폭25mm)" oninput="pnBuildResult()">
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== 볼트/너트류 (91~9W) ===== -->
+          <div id="pn-bolt-section" style="display:none" class="col-12">
+            <div class="alert alert-info py-2 mb-3 small">
+              <strong>볼트/너트 구조:</strong> <code>N[제품군]-[종류1]-[외경/내경2자리]-[길이2자리]-[나사산1]-[재질1]</code>
+            </div>
+            <div class="row g-2">
+              <div class="col-md-2">
+                <label class="form-label small fw-bold">③ 종류 (4자리)</label>
+                <input type="text" class="form-control form-control-sm font-monospace" id="pn-bolt-type" maxlength="1" placeholder="예: 1" oninput="pnBuildResult()">
+                <div class="form-text">1=기본형, 2=서브형 등</div>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small fw-bold">④ 외경(M규격) (5,6자리)</label>
+                <input type="text" class="form-control form-control-sm font-monospace" id="pn-bolt-dia" maxlength="2" placeholder="예: 03 (M3)" oninput="pnBuildResult()">
+                <div class="form-text">03=M3, 04=M4, 05=M5</div>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small fw-bold">⑤ 길이 (7,8자리)</label>
+                <input type="text" class="form-control form-control-sm font-monospace" id="pn-bolt-len" maxlength="2" placeholder="예: 10 (10mm)" oninput="pnBuildResult()">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small fw-bold">⑥ 나사산 (9자리)</label>
+                <input type="text" class="form-control form-control-sm font-monospace" id="pn-bolt-tap" maxlength="1" placeholder="0=전체" oninput="pnBuildResult()">
+                <div class="form-text">0=전체, 5=5mm, A=10mm</div>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">⑦ 재질 (10자리)</label>
+                <select class="form-select form-select-sm" id="pn-bolt-mat" onchange="pnBuildResult()">
+                  <option value="">선택</option>
+                  <option value="N">N — 철/니켈도금</option>
+                  <option value="Z">Z — 아연도금</option>
+                  <option value="S">S — SUS</option>
+                  <option value="B">B — BRASS</option>
+                  <option value="F">F — STEEL</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /row -->
+      </div><!-- /modal-body -->
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+        <button type="button" class="btn btn-outline-secondary" onclick="pnCopy()"><i class="bi bi-clipboard me-1"></i>품번 복사</button>
+        <button type="button" class="btn btn-success" onclick="pnApply()"><i class="bi bi-check2-circle me-1"></i>품번 적용 (신규 BOM)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
