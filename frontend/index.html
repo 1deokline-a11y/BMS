@@ -1342,11 +1342,7 @@ async function loadDashboard() {
 
 function renderDashHistory() {
   const items = window._dashHistory || [];
-  const filtered = dashFilterProducts(dashAllProducts);
-  const filteredPNs = new Set(filtered.map(p => p.part_number));
-  const visible = dashState.cat === 'all'
-    ? items
-    : items.filter(h => (h.affected_products || []).some(pn => filteredPNs.has(pn)));
+  const visible = items; // 드릴다운 탭 선택과 무관하게 전체 이력 항상 표시
   const tbody = document.getElementById('recent-history');
   if (!visible.length) {
     tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">이력 없음</td></tr>';
