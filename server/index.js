@@ -799,8 +799,9 @@ app.get('/api/common-parts/suggest/:group', async (req, res) => {
         const pn = item.part.part_number;
         if (!seen.has(pn)) {
           seen.add(pn);
-          if (!partFreq[pn]) partFreq[pn] = { count: 0, name: item.part.part_name };
+          if (!partFreq[pn]) partFreq[pn] = { count: 0, name: item.part.part_name, quantities: [] };
           partFreq[pn].count++;
+          partFreq[pn].quantities.push(parseFloat(item.quantity) || 1);
         }
       });
     }
@@ -808,8 +809,24 @@ app.get('/api/common-parts/suggest/:group', async (req, res) => {
     const candidates = Object.entries(partFreq)
       .filter(([, v]) => v.count / total >= 0.5)
       .sort((a, b) => b[1].count - a[1].count)
-      .map(([pn, v]) => ({ part_number: pn, part_name: v.name,
-                            frequency: v.count, percentage: Math.round(v.count / total * 100) }));
+      .map(([pn, v]) => {
+        const qtys = v.quantities;
+        // 최빈값(mode) 계산
+        const freq = {};
+        qtys.forEach(q => { freq[q] = (freq[q] || 0) + 1; });
+        const modeQty = parseFloat(Object.entries(freq).sort((a,b) => b[1]-a[1])[0][0]);
+        const allSame = new Set(qtys).size === 1;
+        return {
+          part_number: pn,
+          part_name: v.name,
+          frequency: v.count,
+          percentage: Math.round(v.count / total * 100),
+          qty_mode: modeQty,           // 최빈 수량
+          qty_consistent: allSame,     // 모든 제품에서 동일한 수량인지
+          qty_min: Math.min(...qtys),
+          qty_max: Math.max(...qtys),
+        };
+      });
     res.json({ candidates, ai_suggestion: suggestCommonParts(group, partFreq, total) });
   } catch (e) { res.status(500).json({ detail: e.message }); }
 });

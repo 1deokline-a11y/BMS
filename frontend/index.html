@@ -1007,7 +1007,7 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
           <thead class="table-light">
             <tr>
               <th style="width:36px"><input type="checkbox" id="cps-chk-all" onchange="document.querySelectorAll('.cps-chk').forEach(c=>c.checked=this.checked)"></th>
-              <th>품번</th><th>품명</th><th style="width:70px">빈도</th><th style="width:60px">수량</th>
+              <th>품번</th><th>품명</th><th style="width:70px">빈도</th><th style="width:130px">수량</th>
             </tr>
           </thead>
           <tbody id="cps-body"></tbody>
@@ -2808,15 +2808,30 @@ async function showCommonPartsSuggest(group) {
     }
 
     document.getElementById('cps-count').textContent = `총 ${_cpsCandidates.length}개 후보`;
-    document.getElementById('cps-body').innerHTML = _cpsCandidates.map((c, i) => `
-      <tr>
+    document.getElementById('cps-body').innerHTML = _cpsCandidates.map((c, i) => {
+      // 수량 신뢰도 표시
+      const qtyBadge = c.qty_consistent
+        ? `<span class="badge bg-success ms-1" title="모든 제품에서 동일한 수량">일정</span>`
+        : `<span class="badge bg-warning text-dark ms-1" title="${c.qty_min}~${c.qty_max} 범위, 최빈값 사용">변동</span>`;
+      const qtyHint = c.qty_consistent
+        ? ''
+        : `<div class="text-muted" style="font-size:0.7rem">범위 ${c.qty_min}~${c.qty_max}</div>`;
+
+      return `<tr>
         <td><input type="checkbox" class="cps-chk" data-idx="${i}" checked></td>
         <td class="font-monospace fw-semibold text-primary" style="font-size:0.82rem">${c.part_number}</td>
         <td style="font-size:0.82rem">${c.part_name||'—'}</td>
         <td><span class="badge bg-info text-dark">${c.percentage}%</span></td>
-        <td><input type="number" class="form-control form-control-sm" value="1" min="0.1" step="0.1"
-                   id="cps-qty-${i}" style="width:55px"></td>
-      </tr>`).join('');
+        <td>
+          <div class="d-flex align-items-center gap-1">
+            <input type="number" class="form-control form-control-sm" value="${c.qty_mode ?? 1}" min="0.1" step="0.1"
+                   id="cps-qty-${i}" style="width:55px">
+            ${qtyBadge}
+          </div>
+          ${qtyHint}
+        </td>
+      </tr>`;
+    }).join('');
     document.getElementById('cps-chk-all').checked = true;
   } catch (e) {
     document.getElementById('cps-body').innerHTML =
