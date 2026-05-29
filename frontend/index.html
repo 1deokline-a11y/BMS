@@ -119,15 +119,15 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
   border-bottom: 1px solid #e2e8f0; white-space: nowrap;
 }
 .drill-group-header {
-  padding: 0.3rem 0.75rem 0.15rem;
-  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em;
-  color: #94a3b8; background: #f8fafc;
+  padding: 0.35rem 0.75rem 0.2rem;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+  color: #64748b; background: #f1f5f9;
   border-top: 1px solid #e2e8f0; text-transform: uppercase;
 }
 .drill-group-header:first-child { border-top: none; }
 .drill-item {
-  padding: 0.38rem 0.75rem; cursor: pointer;
-  font-size: 0.8rem; border-bottom: 1px solid #f0f4f8;
+  padding: 0.42rem 0.75rem; cursor: pointer;
+  font-size: 0.85rem; border-bottom: 1px solid #f0f4f8;
   transition: background 0.1s; line-height: 1.4;
 }
 .drill-item:hover { background: #edf2f7; }
@@ -1092,17 +1092,22 @@ const DASH_TREE = {
       '광탭 종단형':       [{ label: '광탭 종단형 단자함',      prefixes: ['A12-WT-'] }],
     },
   },
+  '수동소자': {},
 };
 
 // ── 공통: 카테고리 그룹 헤더 포함 col1 렌더 ─────────
 function renderGroupedCol1(elId, selCat, selVal, onClickFn) {
   const el = document.getElementById(elId);
-  el.innerHTML = Object.entries(DASH_TREE).map(([cat, groups]) =>
-    `<div class="drill-group-header">${cat}</div>` +
-    Object.keys(groups).map(g =>
-      `<div class="drill-item${selCat===cat&&selVal===g?' selected':''}" onclick="${onClickFn}('${cat}','${g.replace(/'/g,"\\'")}')">${g}</div>`
-    ).join('')
-  ).join('');
+  el.innerHTML = Object.entries(DASH_TREE).map(([cat, groups]) => {
+    const keys = Object.keys(groups);
+    const items = keys.length
+      ? keys.map(g =>
+          `<div class="drill-item${selCat===cat&&selVal===g?' selected':''}"`
+          + ` onclick="${onClickFn}('${cat}','${g.replace(/'/g,"\\'")}')">${g}</div>`
+        ).join('')
+      : `<div class="text-muted px-3 py-2" style="font-size:0.8rem">준비 중</div>`;
+    return `<div class="drill-group-header">${cat}</div>${items}`;
+  }).join('');
 }
 
 let dashState = { col1Cat: null, col1: null, col2: null, col3: null };
