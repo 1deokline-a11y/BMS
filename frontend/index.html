@@ -118,6 +118,13 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
   color: #718096; background: #f7fafc;
   border-bottom: 1px solid #e2e8f0; white-space: nowrap;
 }
+.drill-group-header {
+  padding: 0.3rem 0.75rem 0.15rem;
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em;
+  color: #94a3b8; background: #f8fafc;
+  border-top: 1px solid #e2e8f0; text-transform: uppercase;
+}
+.drill-group-header:first-child { border-top: none; }
 .drill-item {
   padding: 0.38rem 0.75rem; cursor: pointer;
   font-size: 0.8rem; border-bottom: 1px solid #f0f4f8;
@@ -174,29 +181,6 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 <!-- ====== DASHBOARD ====== -->
 <div class="page" id="page-dashboard">
 
-  <!-- 분류 탭 (컴팩트) -->
-  <div class="card mb-3">
-    <div class="card-body p-2" style="min-height:0">
-      <div class="d-flex align-items-center gap-2 flex-wrap" id="dash-cat-tabs">
-        <button type="button" class="btn btn-sm btn-primary dash-cat-btn" data-cat="all">
-          <i class="bi bi-grid-fill me-1"></i>전체
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-primary dash-cat-btn" data-cat="기구물">
-          <i class="bi bi-box-seam me-1"></i>기구물
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-primary dash-cat-btn" data-cat="수동소자">
-          <i class="bi bi-cpu me-1"></i>수동소자
-        </button>
-        <div class="dropdown ms-1">
-          <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                  id="dash-sub-btn" data-bs-toggle="dropdown" aria-expanded="false" disabled>
-            <i class="bi bi-funnel me-1"></i><span id="dash-sub-label">세부 분류</span>
-          </button>
-          <ul class="dropdown-menu shadow" id="dash-sub-menu" style="min-width:200px;max-height:320px;overflow-y:auto"></ul>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- 4단 드릴다운 패널 -->
   <div class="card mb-3" id="dash-drill-panel">
@@ -259,30 +243,13 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 
   <!-- 검색 + 드릴다운 -->
   <div class="card mb-3" id="prod-drill-card">
-    <div class="card-header p-0 d-flex align-items-center" id="prod-cat-tabs" style="border-bottom:1px solid #e2e8f0;flex-wrap:wrap">
-      <button class="btn btn-sm prod-cat-btn active" data-cat="all"
-              onclick="prodSetCat('all')"
-              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid #3b82f6;color:#3b82f6;font-weight:700">
-        전체
+    <div class="card-header p-2 d-flex align-items-center gap-1" id="prod-cat-tabs">
+      <input type="text" class="form-control form-control-sm" id="filter-search"
+             placeholder="품번 / 품명 검색" style="width:200px"
+             onkeydown="if(event.key==='Enter')loadProducts()">
+      <button class="btn btn-primary btn-sm" onclick="loadProducts()">
+        <i class="bi bi-search"></i>
       </button>
-      <button class="btn btn-sm prod-cat-btn" data-cat="기구물"
-              onclick="prodSetCat('기구물')"
-              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
-        기구물
-      </button>
-      <button class="btn btn-sm prod-cat-btn" data-cat="수동소자"
-              onclick="prodSetCat('수동소자')"
-              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
-        수동소자
-      </button>
-      <div class="d-flex align-items-center gap-1 ms-auto pe-2">
-        <input type="text" class="form-control form-control-sm" id="filter-search"
-               placeholder="품번 / 품명 검색" style="width:180px"
-               onkeydown="if(event.key==='Enter')loadProducts()">
-        <button class="btn btn-primary btn-sm" onclick="loadProducts()">
-          <i class="bi bi-search"></i>
-        </button>
-      </div>
     </div>
     <!-- 전체 탭: 스크롤 목록 -->
     <div id="prod-all-list" class="card-body p-2" style="max-height:280px;overflow-y:auto"></div>
@@ -549,24 +516,6 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 
   <!-- 4단 드릴다운 패널 (분류군 탭 + 드릴다운) -->
   <div class="card mb-3">
-    <!-- 분류군 탭 -->
-    <div class="card-header p-0 d-flex" id="cmp-cat-tabs" style="border-bottom:1px solid #e2e8f0">
-      <button class="btn btn-sm cmp-cat-btn active" data-cat="all"
-              onclick="cmpSetCat('all')"
-              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
-        전체
-      </button>
-      <button class="btn btn-sm cmp-cat-btn" data-cat="기구물"
-              onclick="cmpSetCat('기구물')"
-              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
-        기구물
-      </button>
-      <button class="btn btn-sm cmp-cat-btn" data-cat="수동소자"
-              onclick="cmpSetCat('수동소자')"
-              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
-        수동소자
-      </button>
-    </div>
     <!-- 전체 탭: 단순 목록 -->
     <div id="cmp-all-list" class="card-body p-2" style="max-height:300px;overflow-y:auto"></div>
     <!-- 드릴다운 패널 -->
@@ -647,27 +596,10 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 
   <!-- 제품 선택 드릴다운 -->
   <div class="card mb-3" id="edit-drill-card">
-    <div class="card-header p-0 d-flex align-items-center" id="edit-cat-tabs" style="border-bottom:1px solid #e2e8f0;flex-wrap:wrap">
-      <button class="btn btn-sm edit-cat-btn active" data-cat="all"
-              onclick="editSetCat('all')"
-              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid #3b82f6;color:#3b82f6;font-weight:700">
-        전체
-      </button>
-      <button class="btn btn-sm edit-cat-btn" data-cat="기구물"
-              onclick="editSetCat('기구물')"
-              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
-        기구물
-      </button>
-      <button class="btn btn-sm edit-cat-btn" data-cat="수동소자"
-              onclick="editSetCat('수동소자')"
-              style="border-radius:0;border:none;padding:0.5rem 1rem;font-size:0.82rem;border-bottom:2px solid transparent">
-        수동소자
-      </button>
-      <div class="d-flex align-items-center gap-1 ms-auto pe-2">
-        <input type="text" class="form-control form-control-sm" id="edit-drill-search"
-               placeholder="품번 / 품명 검색" style="width:180px"
-               oninput="editFilterProducts()">
-      </div>
+    <div class="card-header p-2 d-flex align-items-center gap-1" id="edit-cat-tabs">
+      <input type="text" class="form-control form-control-sm" id="edit-drill-search"
+             placeholder="품번 / 품명 검색" style="width:200px"
+             oninput="editFilterProducts()">
     </div>
     <div id="edit-all-list" class="card-body p-2" style="max-height:280px;overflow-y:auto"></div>
     <div id="edit-drill-panel" style="display:none">
@@ -1162,7 +1094,18 @@ const DASH_TREE = {
   },
 };
 
-let dashState = { cat: 'all', col1: null, col2: null, col3: null };
+// ── 공통: 카테고리 그룹 헤더 포함 col1 렌더 ─────────
+function renderGroupedCol1(elId, selCat, selVal, onClickFn) {
+  const el = document.getElementById(elId);
+  el.innerHTML = Object.entries(DASH_TREE).map(([cat, groups]) =>
+    `<div class="drill-group-header">${cat}</div>` +
+    Object.keys(groups).map(g =>
+      `<div class="drill-item${selCat===cat&&selVal===g?' selected':''}" onclick="${onClickFn}('${cat}','${g.replace(/'/g,"\\'")}')">${g}</div>`
+    ).join('')
+  ).join('');
+}
+
+let dashState = { col1Cat: null, col1: null, col2: null, col3: null };
 let dashAllProducts = [];
 
 function dashMatchProduct(product, prefixes) {
@@ -1170,39 +1113,18 @@ function dashMatchProduct(product, prefixes) {
 }
 
 function dashFilterProducts(products) {
-  if (dashState.cat === 'all') return products;
-  if (dashState.cat === '기구물')
-    return products.filter(p => p.part_number?.startsWith('A11-'));
-  if (dashState.cat === '수동소자')
-    return products.filter(p => p.part_number?.startsWith('A12-'));
   return products;
 }
 
 function dashRenderDrillCols() {
-  const cat = dashState.cat;
   const ph = (msg) => `<div class="text-muted p-3 small">${msg}</div>`;
 
-  // col1: 분류군
-  const col1El = document.getElementById('drill-col1');
-  if (cat === 'all') {
-    col1El.innerHTML = ph('위 탭에서 분류를 선택하세요');
-    document.getElementById('drill-col2').innerHTML = ph('');
-    document.getElementById('drill-col3').innerHTML = ph('');
-    document.getElementById('drill-col4').innerHTML = ph('');
-    document.getElementById('drill-col4-count').style.setProperty('display','none','important');
-    return;
-  }
-  if (DASH_TREE[cat]) {
-    col1El.innerHTML = Object.keys(DASH_TREE[cat]).map(g =>
-      `<div class="drill-item${dashState.col1 === g ? ' selected' : ''}" onclick="dashSelectCol1('${g}')">${g}</div>`
-    ).join('');
-  } else {
-    col1El.innerHTML = ph('준비 중');
-  }
+  // col1: 전체 카테고리 그룹 헤더 포함
+  renderGroupedCol1('drill-col1', dashState.col1Cat, dashState.col1, 'dashSelectCol1');
 
   // col2: 제품군
   const col2El = document.getElementById('drill-col2');
-  const tree2 = dashState.col1 && DASH_TREE[cat]?.[dashState.col1];
+  const tree2 = dashState.col1 && DASH_TREE[dashState.col1Cat]?.[dashState.col1];
   if (tree2) {
     col2El.innerHTML = Object.keys(tree2).map(g =>
       `<div class="drill-item${dashState.col2 === g ? ' selected' : ''}" onclick="dashSelectCol2(this)" data-val="${g.replace(/"/g,'&quot;')}">${g}</div>`
@@ -1223,7 +1145,7 @@ function dashRenderDrillCols() {
   }
 
   // col4: 선택 품번
-  const col4El = document.getElementById('drill-col4');
+  const col4El  = document.getElementById('drill-col4');
   const countBadge = document.getElementById('drill-col4-count');
   if (dashState.col3 !== null && items3?.[dashState.col3]) {
     const { prefixes } = items3[dashState.col3];
@@ -1248,10 +1170,13 @@ function dashRenderDrillCols() {
   }
 }
 
-function dashSelectCol1(val) {
-  dashState.col1 = dashState.col1 === val ? null : val;
+function dashSelectCol1(cat, val) {
+  if (dashState.col1Cat === cat && dashState.col1 === val) {
+    dashState.col1Cat = null; dashState.col1 = null;
+  } else {
+    dashState.col1Cat = cat; dashState.col1 = val;
+  }
   dashState.col2 = null; dashState.col3 = null;
-  dashRenderSubMenu();
   dashRenderDrillCols();
 }
 
@@ -1267,36 +1192,6 @@ function dashSelectCol3(idx) {
   dashRenderDrillCols();
 }
 
-function dashSelectFromDropdown(el) {
-  dashState.col1 = el.dataset.col1;
-  dashState.col2 = el.dataset.col2;
-  dashState.col3 = null;
-  document.getElementById('dash-sub-label').textContent = el.dataset.col2;
-  dashRenderDrillCols();
-}
-
-function dashRenderSubMenu() {
-  const menu = document.getElementById('dash-sub-menu');
-  const btn  = document.getElementById('dash-sub-btn');
-  const subLabel = document.getElementById('dash-sub-label');
-  if (dashState.cat !== '기구물') {
-    btn.disabled = true;
-    subLabel.textContent = '세부 분류';
-    menu.innerHTML = '';
-    return;
-  }
-  btn.disabled = false;
-  menu.innerHTML = Object.entries(DASH_TREE['기구물']).map(([cat1, cat2Obj]) => `
-    <li><h6 class="dropdown-header">${cat1}</h6></li>
-    ${Object.keys(cat2Obj).map(g => `
-      <li><a class="dropdown-item small${dashState.col1 === cat1 && dashState.col2 === g ? ' active' : ''}"
-             href="#" data-col1="${cat1}" data-col2="${g}"
-             onclick="dashSelectFromDropdown(this);return false;">${g}</a></li>
-    `).join('')}
-    <li><hr class="dropdown-divider m-1"></li>
-  `).join('');
-  subLabel.textContent = dashState.col2 || '세부 분류';
-}
 
 function openDashProduct(id) {
   navigateTo('products');
@@ -1308,23 +1203,6 @@ function openDashProduct(id) {
 }
 
 async function loadDashboard() {
-  if (!document.getElementById('dash-cat-tabs').dataset.init) {
-    document.getElementById('dash-cat-tabs').dataset.init = '1';
-    document.querySelectorAll('#dash-cat-tabs .dash-cat-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('#dash-cat-tabs .dash-cat-btn').forEach(x => {
-          x.classList.remove('btn-primary'); x.classList.add('btn-outline-primary');
-        });
-        btn.classList.remove('btn-outline-primary'); btn.classList.add('btn-primary');
-        dashState.cat = btn.dataset.cat;
-        dashState.col1 = null; dashState.col2 = null; dashState.col3 = null;
-        dashRenderSubMenu();
-        dashRenderDrillCols();
-        renderDashHistory();
-      });
-    });
-  }
-
   try {
     const [products, histRes] = await Promise.all([
       api('GET', '/api/products'),
@@ -1332,7 +1210,6 @@ async function loadDashboard() {
     ]);
     dashAllProducts = products;
     window._dashHistory = histRes.items || [];
-    dashRenderSubMenu();
     dashRenderDrillCols();
     renderDashHistory();
   } catch (e) {
@@ -1367,27 +1244,17 @@ function renderDashHistory() {
 
 // ===================== Edit Drill-down =====================
 let editAllProducts = [];
-let editDrillState = { cat: 'all', col1: null, col2: null, col3: null };
+let editDrillState = { col1Cat: null, col1: null, col2: null, col3: null };
 
 async function loadEditDrill() {
-  if (editAllProducts.length) { editSetCat(editDrillState.cat); return; }
+  if (editAllProducts.length) { editRenderPanel(); return; }
   try {
     editAllProducts = await api('GET', '/api/products');
-    editSetCat('all');
+    editRenderPanel();
   } catch (e) {}
 }
 
-function editSetCat(cat) {
-  editDrillState = { cat, col1: null, col2: null, col3: null };
-  document.querySelectorAll('#edit-cat-tabs .edit-cat-btn').forEach(b => {
-    const active = b.dataset.cat === cat;
-    b.classList.toggle('active', active);
-    b.style.borderBottomColor = active ? '#3b82f6' : 'transparent';
-    b.style.color = active ? '#3b82f6' : '';
-    b.style.fontWeight = active ? '700' : '';
-  });
-  editRenderPanel();
-}
+function editSetCat() {}  // 탭 제거로 no-op
 
 function editFilterProducts() {
   editRenderPanel();
@@ -1401,13 +1268,15 @@ function editGetFiltered() {
 }
 
 function editRenderPanel() {
-  const { cat } = editDrillState;
-  const allList = document.getElementById('edit-all-list');
+  const { col1Cat, col1, col2, col3 } = editDrillState;
+  const allList   = document.getElementById('edit-all-list');
   const drillPanel = document.getElementById('edit-drill-panel');
-  const filtered = editGetFiltered();
+  const filtered  = editGetFiltered();
   const ph = t => `<div class="text-muted px-2 py-1" style="font-size:0.75rem">${t}</div>`;
+  const q = (document.getElementById('edit-drill-search')?.value || '').trim();
 
-  if (cat === 'all') {
+  // 검색어 있을 때만 전체목록 표시, 없으면 드릴다운
+  if (q) {
     drillPanel.style.display = 'none';
     allList.style.display = '';
     allList.innerHTML = filtered.length
@@ -1428,32 +1297,27 @@ function editRenderPanel() {
   allList.style.display = 'none';
   drillPanel.style.display = '';
 
-  const c1El = document.getElementById('edit-drill-col1');
-  if (DASH_TREE[cat]) {
-    c1El.innerHTML = Object.keys(DASH_TREE[cat]).map(g =>
-      `<div class="drill-item${editDrillState.col1===g?' selected':''}" onclick="editSelectCol1('${g}')">${g}</div>`
-    ).join('');
-  } else { c1El.innerHTML = ph('준비 중'); }
+  renderGroupedCol1('edit-drill-col1', col1Cat, col1, 'editSelectCol1');
 
   const c2El = document.getElementById('edit-drill-col2');
-  const tree2 = editDrillState.col1 && DASH_TREE[cat]?.[editDrillState.col1];
+  const tree2 = col1 && DASH_TREE[col1Cat]?.[col1];
   if (tree2) {
     c2El.innerHTML = Object.keys(tree2).map(g =>
-      `<div class="drill-item${editDrillState.col2===g?' selected':''}" onclick="editSelectCol2(this)" data-val="${g.replace(/"/g,'&quot;')}">${g}</div>`
+      `<div class="drill-item${col2===g?' selected':''}" onclick="editSelectCol2(this)" data-val="${g.replace(/"/g,'&quot;')}">${g}</div>`
     ).join('');
   } else { c2El.innerHTML = ph('분류군 선택'); }
 
   const c3El = document.getElementById('edit-drill-col3');
-  const items3 = editDrillState.col2 && tree2?.[editDrillState.col2];
+  const items3 = col2 && tree2?.[col2];
   if (items3) {
     c3El.innerHTML = items3.map((item, idx) =>
-      `<div class="drill-item${editDrillState.col3===idx?' selected':''}" onclick="editSelectCol3(${idx})">${item.label}</div>`
+      `<div class="drill-item${col3===idx?' selected':''}" onclick="editSelectCol3(${idx})">${item.label}</div>`
     ).join('');
   } else { c3El.innerHTML = ph('제품군 선택'); }
 
   const c4El = document.getElementById('edit-drill-col4');
-  if (editDrillState.col3 !== null && items3?.[editDrillState.col3]) {
-    const { prefixes } = items3[editDrillState.col3];
+  if (col3 !== null && items3?.[col3]) {
+    const { prefixes } = items3[col3];
     const matched = filtered.filter(p => dashMatchProduct(p, prefixes));
     c4El.innerHTML = matched.length
       ? matched.map(p => `
@@ -1470,8 +1334,12 @@ function editRenderPanel() {
   } else { c4El.innerHTML = ph('제품코드 선택'); }
 }
 
-function editSelectCol1(val) {
-  editDrillState.col1 = editDrillState.col1===val ? null : val;
+function editSelectCol1(cat, val) {
+  if (editDrillState.col1Cat === cat && editDrillState.col1 === val) {
+    editDrillState.col1Cat = null; editDrillState.col1 = null;
+  } else {
+    editDrillState.col1Cat = cat; editDrillState.col1 = val;
+  }
   editDrillState.col2 = null; editDrillState.col3 = null;
   editRenderPanel();
 }
@@ -1563,62 +1431,24 @@ function exportEditBOM() {
 
 // ===================== Products =====================
 let allProducts = [];
-let prodDrillState = { cat: 'all', col1: null, col2: null, col3: null };
+let prodDrillState = { col1Cat: null, col1: null, col2: null, col3: null };
 
-function prodSetCat(cat) {
-  prodDrillState = { cat, col1: null, col2: null, col3: null };
-  document.querySelectorAll('#prod-cat-tabs .prod-cat-btn').forEach(b => {
-    const active = b.dataset.cat === cat;
-    b.classList.toggle('active', active);
-    b.style.borderBottomColor = active ? '#3b82f6' : 'transparent';
-    b.style.color = active ? '#3b82f6' : '';
-    b.style.fontWeight = active ? '700' : '';
-  });
-  prodRenderPanel();
-}
+function prodSetCat() {}  // 탭 제거로 no-op
 
 function prodRenderPanel() {
-  const { cat } = prodDrillState;
-  const allList = document.getElementById('prod-all-list');
-  const drillPanel = document.getElementById('prod-drill-panel');
-
-  if (cat === 'all') {
-    drillPanel.style.display = 'none';
-    allList.style.display = '';
-    const ph = '<div class="text-muted small p-2">제품 없음</div>';
-    allList.innerHTML = allProducts.length
-      ? allProducts.map(p => `
-          <div class="drill-item d-flex align-items-center justify-content-between mb-1">
-            <div style="min-width:0;flex:1;overflow:hidden;cursor:pointer" onclick="openBOMFromDrill(${p.id})">
-              <span class="fw-semibold text-primary" style="font-size:0.78rem">${p.part_number}</span>
-              <span class="text-muted d-block" style="font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
-            </div>
-            <button class="btn btn-outline-primary flex-shrink-0 ms-2"
-                    style="font-size:0.7rem;padding:0.1rem 0.5rem"
-                    onclick="openBOMFromDrill(${p.id});event.stopPropagation()">조회</button>
-          </div>`).join('')
-      : ph;
-    return;
-  }
-
-  allList.style.display = 'none';
-  drillPanel.style.display = '';
+  document.getElementById('prod-all-list').style.display = 'none';
+  document.getElementById('prod-drill-panel').style.display = '';
   prodRenderDrillCols();
 }
 
 function prodRenderDrillCols() {
-  const { cat, col1: sc1, col2: sc2, col3: sc3 } = prodDrillState;
+  const { col1Cat, col1: sc1, col2: sc2, col3: sc3 } = prodDrillState;
   const ph = t => `<div class="text-muted px-2 py-1" style="font-size:0.75rem">${t}</div>`;
 
-  const c1El = document.getElementById('prod-drill-col1');
-  if (DASH_TREE[cat]) {
-    c1El.innerHTML = Object.keys(DASH_TREE[cat]).map(g =>
-      `<div class="drill-item${sc1 === g ? ' selected' : ''}" onclick="prodSelectCol1('${g}')">${g}</div>`
-    ).join('');
-  } else { c1El.innerHTML = ph('준비 중'); }
+  renderGroupedCol1('prod-drill-col1', col1Cat, sc1, 'prodSelectCol1');
 
   const c2El = document.getElementById('prod-drill-col2');
-  const tree2 = sc1 && DASH_TREE[cat]?.[sc1];
+  const tree2 = sc1 && DASH_TREE[col1Cat]?.[sc1];
   if (tree2) {
     c2El.innerHTML = Object.keys(tree2).map(g =>
       `<div class="drill-item${sc2 === g ? ' selected' : ''}" onclick="prodSelectCol2(this)" data-val="${g.replace(/"/g,'&quot;')}">${g}</div>`
@@ -1652,8 +1482,12 @@ function prodRenderDrillCols() {
   } else { c4El.innerHTML = ph('제품코드 선택'); }
 }
 
-function prodSelectCol1(val) {
-  prodDrillState.col1 = prodDrillState.col1 === val ? null : val;
+function prodSelectCol1(cat, val) {
+  if (prodDrillState.col1Cat === cat && prodDrillState.col1 === val) {
+    prodDrillState.col1Cat = null; prodDrillState.col1 = null;
+  } else {
+    prodDrillState.col1Cat = cat; prodDrillState.col1 = val;
+  }
   prodDrillState.col2 = null; prodDrillState.col3 = null;
   prodRenderDrillCols();
 }
@@ -2092,71 +1926,32 @@ async function exportBOM() {
 let cmpAllProducts = [];
 let cmpPick1 = null;   // { id, part_number, name }
 let cmpPick2 = null;
-let cmpDrillState = { cat: 'all', col1: null, col2: null, col3: null };
+let cmpDrillState = { col1Cat: null, col1: null, col2: null, col3: null };
 
 async function loadCompareSelects() {
   try {
     cmpAllProducts = await api('GET', '/api/products');
-    cmpSetCat(cmpDrillState.cat);
+    cmpRenderPanel();
   } catch (e) {}
 }
 
-function cmpSetCat(cat) {
-  cmpDrillState = { cat, col1: null, col2: null, col3: null };
-  document.querySelectorAll('#cmp-cat-tabs .cmp-cat-btn').forEach(b => {
-    const active = b.dataset.cat === cat;
-    b.classList.toggle('active', active);
-    b.style.borderBottomColor = active ? '#3b82f6' : 'transparent';
-    b.style.color = active ? '#3b82f6' : '';
-    b.style.fontWeight = active ? '700' : '';
-  });
-  cmpRenderPanel();
-}
+function cmpSetCat() {}  // 탭 제거로 no-op
 
 function cmpRenderPanel() {
-  const { cat } = cmpDrillState;
-  const allList = document.getElementById('cmp-all-list');
-  const drillPanel = document.getElementById('cmp-drill-panel');
-
-  if (cat === 'all') {
-    drillPanel.style.display = 'none';
-    allList.style.display = '';
-    allList.innerHTML = cmpAllProducts.length
-      ? cmpAllProducts.map(p => `
-          <div class="drill-item d-flex align-items-center justify-content-between mb-1">
-            <div style="min-width:0;flex:1;overflow:hidden">
-              <span class="fw-semibold text-primary" style="font-size:0.78rem">${p.part_number}</span>
-              <span class="text-muted d-block" style="font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
-            </div>
-            <div class="d-flex gap-1 flex-shrink-0 ms-1">
-              <button class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size:0.68rem" onclick="cmpSetBOM(1,${p.id},'${p.part_number.replace(/'/g,"\\'")}','${(p.name||'').replace(/'/g,"\\'")}');event.stopPropagation()">BOM1</button>
-              <button class="btn btn-sm btn-outline-success py-0 px-1" style="font-size:0.68rem" onclick="cmpSetBOM(2,${p.id},'${p.part_number.replace(/'/g,"\\'")}','${(p.name||'').replace(/'/g,"\\'")}');event.stopPropagation()">BOM2</button>
-            </div>
-          </div>`).join('')
-      : '<div class="text-muted small p-2">제품 없음</div>';
-    return;
-  }
-
-  allList.style.display = 'none';
-  drillPanel.style.display = '';
+  document.getElementById('cmp-all-list').style.display = 'none';
+  document.getElementById('cmp-drill-panel').style.display = '';
   cmpRenderDrillCols();
 }
 
 function cmpRenderDrillCols() {
-  const { cat, col1: sc1, col2: sc2, col3: sc3 } = cmpDrillState;
+  const { col1Cat, col1: sc1, col2: sc2, col3: sc3 } = cmpDrillState;
   const ph = t => `<div class="text-muted px-2 py-1" style="font-size:0.75rem">${t}</div>`;
 
-  // col1
-  const c1El = document.getElementById('cmp-drill-col1');
-  if (DASH_TREE[cat]) {
-    c1El.innerHTML = Object.keys(DASH_TREE[cat]).map(g =>
-      `<div class="drill-item${sc1 === g ? ' selected' : ''}" onclick="cmpSelectCol1('${g}')">${g}</div>`
-    ).join('');
-  } else { c1El.innerHTML = ph('준비 중'); }
+  renderGroupedCol1('cmp-drill-col1', col1Cat, sc1, 'cmpSelectCol1');
 
   // col2
   const c2El = document.getElementById('cmp-drill-col2');
-  const tree2 = sc1 && DASH_TREE[cat]?.[sc1];
+  const tree2 = sc1 && DASH_TREE[col1Cat]?.[sc1];
   if (tree2) {
     c2El.innerHTML = Object.keys(tree2).map(g =>
       `<div class="drill-item${sc2 === g ? ' selected' : ''}" onclick="cmpSelectCol2(this)" data-val="${g.replace(/"/g,'&quot;')}">${g}</div>`
@@ -2193,8 +1988,12 @@ function cmpRenderDrillCols() {
   } else { c4El.innerHTML = ph('제품코드 선택'); }
 }
 
-function cmpSelectCol1(val) {
-  cmpDrillState.col1 = cmpDrillState.col1 === val ? null : val;
+function cmpSelectCol1(cat, val) {
+  if (cmpDrillState.col1Cat === cat && cmpDrillState.col1 === val) {
+    cmpDrillState.col1Cat = null; cmpDrillState.col1 = null;
+  } else {
+    cmpDrillState.col1Cat = cat; cmpDrillState.col1 = val;
+  }
   cmpDrillState.col2 = null; cmpDrillState.col3 = null;
   cmpRenderDrillCols();
 }
