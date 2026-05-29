@@ -866,6 +866,9 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div class="page-title mb-0"><i class="bi bi-plus-circle me-2"></i>신규 BOM 생성 (F4)</div>
     <div class="d-flex gap-2 align-items-center">
+      <button class="btn btn-outline-secondary" onclick="openCommonPartsManager()">
+        <i class="bi bi-gear me-1"></i>공용부품 관리
+      </button>
       <button class="btn btn-outline-success" onclick="openPNModal()">
         <i class="bi bi-123 me-1"></i>품번 채번
       </button>
@@ -936,6 +939,51 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
       <button class="btn btn-success" onclick="saveNewBOM()">
         <i class="bi bi-save me-1"></i>BOM 저장
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- 공용부품 관리 모달 -->
+<div class="modal fade" id="commonPartsManagerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title mb-0"><i class="bi bi-gear me-1"></i>공용부품 관리</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="d-flex border-bottom">
+          <!-- 제품군 목록 (왼쪽) -->
+          <div style="width:160px;flex-shrink:0;border-right:1px solid #e2e8f0;background:#f8fafc">
+            <div class="px-3 py-2 text-muted fw-bold" style="font-size:0.75rem;text-transform:uppercase">제품군</div>
+            <div id="cpm-group-list"></div>
+          </div>
+          <!-- 등록된 공용부품 목록 (오른쪽) -->
+          <div class="flex-fill">
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+              <span class="fw-semibold" style="font-size:0.85rem" id="cpm-group-title">제품군을 선택하세요</span>
+              <button class="btn btn-sm btn-outline-danger d-none py-0" id="cpm-clear-btn"
+                      onclick="cpmClearAll()">
+                <i class="bi bi-trash me-1"></i>전체 해제
+              </button>
+            </div>
+            <table class="table table-sm table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>품번</th><th>품명</th><th style="width:60px">수량</th><th style="width:50px">해제</th>
+                </tr>
+              </thead>
+              <tbody id="cpm-parts-body">
+                <tr><td colspan="4" class="text-center text-muted py-4">왼쪽에서 제품군을 선택하세요</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <small class="text-muted me-auto" id="cpm-count"></small>
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">닫기</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2650,6 +2698,92 @@ async function loadCommonPartsForNew() {
       await showCommonPartsSuggest(group);
     }
   } catch (e) {}
+}
+
+// ── 공용부품 관리 모달 ──────────────────────────────
+let _cpmSelectedGroup = '';
+
+async function openCommonPartsManager() {
+  _cpmSelectedGroup = '';
+  document.getElementById('cpm-group-title').textContent = '제품군을 선택하세요';
+  document.getElementById('cpm-parts-body').innerHTML =
+    '<tr><td colspan="4" class="text-center text-muted py-4">왼쪽에서 제품군을 선택하세요</td></tr>';
+  document.getElementById('cpm-count').textContent = '';
+  document.getElementById('cpm-clear-btn').classList.add('d-none');
+  new bootstrap.Modal(document.getElementById('commonPartsManagerModal')).show();
+
+  // 제품군 목록 로드
+  try {
+    const groups = await api('GET', '/api/products/groups');
+    document.getElementById('cpm-group-list').innerHTML = groups.length
+      ? groups.map(g => `<div class="drill-item" onclick="cpmSelectGroup('${g}')">${g}</div>`).join('')
+      : '<div class="text-muted small p-3">제품군 없음</div>';
+  } catch (e) {
+    document.getElementById('cpm-group-list').innerHTML = '<div class="text-danger small p-3">로드 실패</div>';
+  }
+}
+
+async function cpmSelectGroup(group) {
+  _cpmSelectedGroup = group;
+  document.querySelectorAll('#cpm-group-list .drill-item').forEach(el => {
+    el.classList.toggle('selected', el.textContent.trim() === group);
+  });
+  document.getElementById('cpm-group-title').textContent = `공용부품 — ${group}`;
+  document.getElementById('cpm-parts-body').innerHTML =
+    '<tr><td colspan="4" class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></td></tr>';
+
+  try {
+    const parts = await api('GET', `/api/common-parts?product_group=${encodeURIComponent(group)}`);
+    document.getElementById('cpm-count').textContent = `등록 ${parts.length}개`;
+    document.getElementById('cpm-clear-btn').classList.toggle('d-none', parts.length === 0);
+
+    document.getElementById('cpm-parts-body').innerHTML = parts.length
+      ? parts.map(t => `
+          <tr id="cpm-row-${t.id}">
+            <td class="font-monospace fw-semibold text-primary" style="font-size:0.82rem">${t.part.part_number}</td>
+            <td style="font-size:0.82rem">${t.part.part_name||'—'}</td>
+            <td class="text-muted" style="font-size:0.82rem">${t.default_quantity}</td>
+            <td>
+              <button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:0.72rem"
+                      onclick="cpmDelete(${t.id})">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </td>
+          </tr>`).join('')
+      : '<tr><td colspan="4" class="text-center text-muted py-3">등록된 공용부품 없음</td></tr>';
+  } catch (e) {
+    document.getElementById('cpm-parts-body').innerHTML =
+      `<tr><td colspan="4" class="text-danger p-3">로드 실패: ${e.message}</td></tr>`;
+  }
+}
+
+async function cpmDelete(id) {
+  if (!confirm('이 공용부품 지정을 해제하시겠습니까?')) return;
+  try {
+    await fetch(`/api/common-parts/${id}`, { method: 'DELETE' });
+    document.getElementById('cpm-row-' + id)?.remove();
+    const remaining = document.querySelectorAll('#cpm-parts-body tr[id^="cpm-row-"]').length;
+    document.getElementById('cpm-count').textContent = `등록 ${remaining}개`;
+    if (!remaining) {
+      document.getElementById('cpm-clear-btn').classList.add('d-none');
+      document.getElementById('cpm-parts-body').innerHTML =
+        '<tr><td colspan="4" class="text-center text-muted py-3">등록된 공용부품 없음</td></tr>';
+    }
+    toast('공용부품 지정 해제 완료');
+  } catch (e) { toast('해제 실패: ' + e.message, 'danger'); }
+}
+
+async function cpmClearAll() {
+  if (!confirm(`"${_cpmSelectedGroup}" 제품군의 공용부품을 모두 해제하시겠습니까?`)) return;
+  try {
+    const parts = await api('GET', `/api/common-parts?product_group=${encodeURIComponent(_cpmSelectedGroup)}`);
+    await Promise.all(parts.map(t => fetch(`/api/common-parts/${t.id}`, { method: 'DELETE' })));
+    document.getElementById('cpm-count').textContent = '등록 0개';
+    document.getElementById('cpm-clear-btn').classList.add('d-none');
+    document.getElementById('cpm-parts-body').innerHTML =
+      '<tr><td colspan="4" class="text-center text-muted py-3">등록된 공용부품 없음</td></tr>';
+    toast('전체 공용부품 지정 해제 완료');
+  } catch (e) { toast('해제 실패: ' + e.message, 'danger'); }
 }
 
 let _cpsGroup = '';
