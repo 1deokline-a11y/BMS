@@ -121,10 +121,13 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 .drill-group-header {
   padding: 0.3rem 0.75rem 0.15rem;
   font-size: 0.75rem; font-weight: 500; letter-spacing: 0.02em;
-  color: #94a3b8; background: #ffffff;
+  color: #6c757d; background: #ffffff; cursor: pointer;
   border-top: 1px solid #e2e8f0; text-transform: uppercase;
+  user-select: none;
 }
 .drill-group-header:first-child { border-top: none; }
+.drill-group-header:hover { background: #f8f9fa; }
+.drill-group-header.expanded { color: #2563EB; font-weight: 600; }
 .drill-item {
   padding: 0.42rem 0.75rem; cursor: pointer;
   font-size: 0.85rem; border-bottom: 1px solid #f0f4f8;
@@ -1184,21 +1187,27 @@ const DASH_TREE = {
 };
 
 // ── 공통: 카테고리 그룹 헤더 포함 col1 렌더 ─────────
-function renderGroupedCol1(elId, selCat, selVal, onClickFn) {
+// expandedCat: 현재 열린 카테고리, selCat/selVal: 선택된 항목
+// expandFn: 카테고리 헤더 클릭 함수명, selectFn: 항목 선택 함수명
+function renderGroupedCol1(elId, expandedCat, selCat, selVal, expandFn, selectFn) {
   const el = document.getElementById(elId);
   el.innerHTML = Object.entries(DASH_TREE).map(([cat, groups]) => {
+    const isOpen = expandedCat === cat;
+    const arrow  = `<i class="bi bi-chevron-${isOpen?'down':'right'} me-1" style="font-size:0.62rem;vertical-align:middle"></i>`;
+    const header = `<div class="drill-group-header${isOpen?' expanded':''}" onclick="${expandFn}('${cat}')">${arrow}${cat}</div>`;
+    if (!isOpen) return header;
+
     const keys = Object.keys(groups);
     const items = keys.length
       ? keys.map(g =>
-          `<div class="drill-item${selCat===cat&&selVal===g?' selected':''}"`
-          + ` onclick="${onClickFn}('${cat}','${g.replace(/'/g,"\\'")}')">${g}</div>`
+          `<div class="drill-item ps-4${selCat===cat&&selVal===g?' selected':''}" onclick="${selectFn}('${cat}','${g.replace(/'/g,"\\'")}')">${g}</div>`
         ).join('')
-      : `<div class="text-muted px-3 py-2" style="font-size:0.8rem">준비 중</div>`;
-    return `<div class="drill-group-header">${cat}</div>${items}`;
+      : `<div class="text-muted ps-4 py-2" style="font-size:0.75rem">준비 중</div>`;
+    return header + items;
   }).join('');
 }
 
-let dashState = { col1Cat: null, col1: null, col2: null, col3: null };
+let dashState = { expandedCat: null, col1Cat: null, col1: null, col2: null, col3: null };
 let dashAllProducts = [];
 
 function dashMatchProduct(product, prefixes) {
@@ -1212,8 +1221,8 @@ function dashFilterProducts(products) {
 function dashRenderDrillCols() {
   const ph = (msg) => `<div class="text-muted p-3 small">${msg}</div>`;
 
-  // col1: 전체 카테고리 그룹 헤더 포함
-  renderGroupedCol1('drill-col1', dashState.col1Cat, dashState.col1, 'dashSelectCol1');
+  // col1: 아코디언 방식
+  renderGroupedCol1('drill-col1', dashState.expandedCat, dashState.col1Cat, dashState.col1, 'dashExpandCat', 'dashSelectCol1');
 
   // col2: 제품군
   const col2El = document.getElementById('drill-col2');
@@ -1263,11 +1272,20 @@ function dashRenderDrillCols() {
   }
 }
 
+function dashExpandCat(cat) {
+  dashState.expandedCat = dashState.expandedCat === cat ? null : cat;
+  if (dashState.col1Cat !== dashState.expandedCat) {
+    dashState.col1Cat = null; dashState.col1 = null;
+    dashState.col2 = null; dashState.col3 = null;
+  }
+  dashRenderDrillCols();
+}
 function dashSelectCol1(cat, val) {
   if (dashState.col1Cat === cat && dashState.col1 === val) {
     dashState.col1Cat = null; dashState.col1 = null;
   } else {
     dashState.col1Cat = cat; dashState.col1 = val;
+    dashState.expandedCat = cat;
   }
   dashState.col2 = null; dashState.col3 = null;
   dashRenderDrillCols();
@@ -1355,7 +1373,7 @@ function renderDashHistory() {
 
 // ===================== Edit Drill-down =====================
 let editAllProducts = [];
-let editDrillState = { col1Cat: null, col1: null, col2: null, col3: null };
+let editDrillState = { expandedCat: null, col1Cat: null, col1: null, col2: null, col3: null };
 
 async function loadEditDrill() {
   if (editAllProducts.length) { editRenderPanel(); return; }
@@ -1408,7 +1426,7 @@ function editRenderPanel() {
   allList.style.display = 'none';
   drillPanel.style.display = '';
 
-  renderGroupedCol1('edit-drill-col1', col1Cat, col1, 'editSelectCol1');
+  renderGroupedCol1('edit-drill-col1', editDrillState.expandedCat, col1Cat, col1, 'editExpandCat', 'editSelectCol1');
 
   const c2El = document.getElementById('edit-drill-col2');
   const tree2 = col1 && DASH_TREE[col1Cat]?.[col1];
@@ -1445,11 +1463,20 @@ function editRenderPanel() {
   } else { c4El.innerHTML = ph('제품코드 선택'); }
 }
 
+function editExpandCat(cat) {
+  editDrillState.expandedCat = editDrillState.expandedCat === cat ? null : cat;
+  if (editDrillState.col1Cat !== editDrillState.expandedCat) {
+    editDrillState.col1Cat = null; editDrillState.col1 = null;
+    editDrillState.col2 = null; editDrillState.col3 = null;
+  }
+  editRenderPanel();
+}
 function editSelectCol1(cat, val) {
   if (editDrillState.col1Cat === cat && editDrillState.col1 === val) {
     editDrillState.col1Cat = null; editDrillState.col1 = null;
   } else {
     editDrillState.col1Cat = cat; editDrillState.col1 = val;
+    editDrillState.expandedCat = cat;
   }
   editDrillState.col2 = null; editDrillState.col3 = null;
   editRenderPanel();
@@ -1542,45 +1569,44 @@ function exportEditBOM() {
 
 // ===================== Products =====================
 let allProducts = [];
-let prodDrillState = { col1Cat: null, col1: null, col2: null, col3: null };
+let prodDrillState = { expandedCat: null, col1Cat: null, col1: null, col2: null, col3: null };
 
 function prodSetCat() {}  // 탭 제거로 no-op
 
 function prodRenderPanel() {
   const search = (document.getElementById('filter-search')?.value || '').trim();
-  const allList   = document.getElementById('prod-all-list');
+  const allList    = document.getElementById('prod-all-list');
   const drillPanel = document.getElementById('prod-drill-panel');
   const ph = '<div class="text-muted small p-2">제품 없음</div>';
 
-  if (search) {
-    // 검색어 있을 때 → 완제품 목록 표시
-    drillPanel.style.display = 'none';
+  // 검색 결과: 검색어 있을 때만 목록 표시 (드릴다운은 항상 유지)
+  if (search && allProducts.length) {
     allList.style.display = '';
-    allList.innerHTML = allProducts.length
-      ? allProducts.map(p => `
-          <div class="drill-item d-flex align-items-center justify-content-between mb-1">
-            <div style="min-width:0;flex:1;overflow:hidden;cursor:pointer" onclick="openBOMFromDrill(${p.id})">
-              <span class="fw-semibold text-primary" style="font-size:0.82rem">${p.part_number}</span>
-              <span class="text-muted d-block" style="font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
-            </div>
-            <button class="btn btn-outline-primary flex-shrink-0 ms-2"
-                    style="font-size:0.7rem;padding:0.1rem 0.5rem"
-                    onclick="openBOMFromDrill(${p.id});event.stopPropagation()">조회</button>
-          </div>`).join('')
-      : ph;
+    allList.innerHTML = allProducts.map(p => `
+        <div class="drill-item d-flex align-items-center justify-content-between mb-1">
+          <div style="min-width:0;flex:1;overflow:hidden;cursor:pointer" onclick="openBOMFromDrill(${p.id})">
+            <span class="fw-semibold text-primary" style="font-size:0.82rem">${p.part_number}</span>
+            <span class="text-muted d-block" style="font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
+          </div>
+          <button class="btn btn-outline-primary flex-shrink-0 ms-2"
+                  style="font-size:0.7rem;padding:0.1rem 0.5rem"
+                  onclick="openBOMFromDrill(${p.id});event.stopPropagation()">조회</button>
+        </div>`).join('');
   } else {
-    // 검색어 없을 때 → 드릴다운 표시
     allList.style.display = 'none';
-    drillPanel.style.display = '';
-    prodRenderDrillCols();
+    if (search && !allProducts.length) allList.innerHTML = ph;
   }
+
+  // 드릴다운은 항상 표시
+  drillPanel.style.display = '';
+  prodRenderDrillCols();
 }
 
 function prodRenderDrillCols() {
   const { col1Cat, col1: sc1, col2: sc2, col3: sc3 } = prodDrillState;
   const ph = t => `<div class="text-muted px-2 py-1" style="font-size:0.75rem">${t}</div>`;
 
-  renderGroupedCol1('prod-drill-col1', col1Cat, sc1, 'prodSelectCol1');
+  renderGroupedCol1('prod-drill-col1', prodDrillState.expandedCat, col1Cat, sc1, 'prodExpandCat', 'prodSelectCol1');
 
   const c2El = document.getElementById('prod-drill-col2');
   const tree2 = sc1 && DASH_TREE[col1Cat]?.[sc1];
@@ -1617,11 +1643,20 @@ function prodRenderDrillCols() {
   } else { c4El.innerHTML = ph('제품코드 선택'); }
 }
 
+function prodExpandCat(cat) {
+  prodDrillState.expandedCat = prodDrillState.expandedCat === cat ? null : cat;
+  if (prodDrillState.col1Cat !== prodDrillState.expandedCat) {
+    prodDrillState.col1Cat = null; prodDrillState.col1 = null;
+    prodDrillState.col2 = null; prodDrillState.col3 = null;
+  }
+  prodRenderDrillCols();
+}
 function prodSelectCol1(cat, val) {
   if (prodDrillState.col1Cat === cat && prodDrillState.col1 === val) {
     prodDrillState.col1Cat = null; prodDrillState.col1 = null;
   } else {
     prodDrillState.col1Cat = cat; prodDrillState.col1 = val;
+    prodDrillState.expandedCat = cat;
   }
   prodDrillState.col2 = null; prodDrillState.col3 = null;
   prodRenderDrillCols();
@@ -2087,7 +2122,7 @@ async function exportBOM() {
 let cmpAllProducts = [];
 let cmpPick1 = null;   // { id, part_number, name }
 let cmpPick2 = null;
-let cmpDrillState = { col1Cat: null, col1: null, col2: null, col3: null };
+let cmpDrillState = { expandedCat: null, col1Cat: null, col1: null, col2: null, col3: null };
 
 async function loadCompareSelects() {
   try {
@@ -2108,7 +2143,7 @@ function cmpRenderDrillCols() {
   const { col1Cat, col1: sc1, col2: sc2, col3: sc3 } = cmpDrillState;
   const ph = t => `<div class="text-muted px-2 py-1" style="font-size:0.75rem">${t}</div>`;
 
-  renderGroupedCol1('cmp-drill-col1', col1Cat, sc1, 'cmpSelectCol1');
+  renderGroupedCol1('cmp-drill-col1', cmpDrillState.expandedCat, col1Cat, sc1, 'cmpExpandCat', 'cmpSelectCol1');
 
   // col2
   const c2El = document.getElementById('cmp-drill-col2');
@@ -2149,11 +2184,20 @@ function cmpRenderDrillCols() {
   } else { c4El.innerHTML = ph('제품코드 선택'); }
 }
 
+function cmpExpandCat(cat) {
+  cmpDrillState.expandedCat = cmpDrillState.expandedCat === cat ? null : cat;
+  if (cmpDrillState.col1Cat !== cmpDrillState.expandedCat) {
+    cmpDrillState.col1Cat = null; cmpDrillState.col1 = null;
+    cmpDrillState.col2 = null; cmpDrillState.col3 = null;
+  }
+  cmpRenderDrillCols();
+}
 function cmpSelectCol1(cat, val) {
   if (cmpDrillState.col1Cat === cat && cmpDrillState.col1 === val) {
     cmpDrillState.col1Cat = null; cmpDrillState.col1 = null;
   } else {
     cmpDrillState.col1Cat = cat; cmpDrillState.col1 = val;
+    cmpDrillState.expandedCat = cat;
   }
   cmpDrillState.col2 = null; cmpDrillState.col3 = null;
   cmpRenderDrillCols();
