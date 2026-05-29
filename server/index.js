@@ -791,9 +791,20 @@ app.get('/api/common-parts/suggest/:group', async (req, res) => {
     if (error) throw error;
     if (!products.length) return res.json({ suggestion: '해당 제품군의 제품이 없습니다', candidates: [] });
 
-    const partFreq = {}, total = products.length;
+    // 개발품번(-0000) 및 BOM 비어있는 제품 제외
+    const validProducts = [];
     for (const p of products) {
+      if (/\-0000$/.test(p.part_number)) continue;   // 개발품번 제외
       const items = await getBOMItems(p.id);
+      if (!items.length) continue;                    // 빈 BOM 제외
+      validProducts.push({ product: p, items });
+    }
+
+    const total = validProducts.length;
+    if (!total) return res.json({ candidates: [], suggestion: '분석 가능한 제품이 없습니다 (빈 BOM 및 개발품번 제외 후)' });
+
+    const partFreq = {};
+    for (const { items } of validProducts) {
       const seen = new Set();
       items.forEach(item => {
         const pn = item.part.part_number;
@@ -827,7 +838,13 @@ app.get('/api/common-parts/suggest/:group', async (req, res) => {
           qty_max: Math.max(...qtys),
         };
       });
-    res.json({ candidates, ai_suggestion: suggestCommonParts(group, partFreq, total) });
+    const excluded = products.length - total;
+    res.json({
+      candidates,
+      analyzed_count: total,
+      excluded_count: excluded,
+      ai_suggestion: suggestCommonParts(group, partFreq, total),
+    });
   } catch (e) { res.status(500).json({ detail: e.message }); }
 });
 

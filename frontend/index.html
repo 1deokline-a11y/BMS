@@ -2807,7 +2807,10 @@ async function showCommonPartsSuggest(group) {
       return;
     }
 
-    document.getElementById('cps-count').textContent = `총 ${_cpsCandidates.length}개 후보`;
+    const analyzedMsg = result.analyzed_count != null
+      ? `분석 ${result.analyzed_count}개 제품` + (result.excluded_count > 0 ? ` (빈BOM·개발품번 ${result.excluded_count}개 제외)` : '')
+      : '';
+    document.getElementById('cps-count').textContent = `후보 ${_cpsCandidates.length}개  |  ${analyzedMsg}`;
     document.getElementById('cps-body').innerHTML = _cpsCandidates.map((c, i) => {
       // 수량 신뢰도 표시
       const qtyBadge = c.qty_consistent
