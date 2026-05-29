@@ -940,6 +940,45 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
   </div>
 </div>
 
+<!-- 공용부품 자동 분석 모달 -->
+<div class="modal fade" id="commonPartsSuggestModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <div>
+          <h6 class="modal-title mb-0"><i class="bi bi-stars me-1 text-warning"></i>공용부품 자동 분석</h6>
+          <small class="text-muted" id="cps-group-label"></small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="alert alert-info m-3 py-2 mb-0" style="font-size:0.85rem">
+          기존 BOM 데이터를 분석해 50% 이상 제품에 공통으로 사용되는 부품을 추천합니다. 선택 후 현재 BOM에 추가하거나 공용부품으로 등록할 수 있습니다.
+        </div>
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width:36px"><input type="checkbox" id="cps-chk-all" onchange="document.querySelectorAll('.cps-chk').forEach(c=>c.checked=this.checked)"></th>
+              <th>품번</th><th>품명</th><th style="width:70px">빈도</th><th style="width:60px">수량</th>
+            </tr>
+          </thead>
+          <tbody id="cps-body"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer py-2 gap-2">
+        <small class="text-muted me-auto" id="cps-count"></small>
+        <button class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">닫기</button>
+        <button class="btn btn-sm btn-outline-success" onclick="cpsBulkRegisterAndLoad()">
+          <i class="bi bi-bookmark-plus me-1"></i>공용부품으로 등록 후 BOM에 추가
+        </button>
+        <button class="btn btn-sm btn-primary" onclick="cpsAddToBOM()">
+          <i class="bi bi-plus-circle me-1"></i>선택 항목만 BOM에 추가
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ====== HISTORY ====== -->
 <div class="page" id="page-history">
   <div class="page-title"><i class="bi bi-clock-history me-2"></i>변경 이력</div>
@@ -2593,19 +2632,99 @@ async function loadCommonPartsForNew() {
   if (!group) return;
   try {
     const parts = await api('GET', `/api/common-parts?product_group=${group}`);
-    newBOMItems = parts.map((t, i) => ({
-      type: 'common',
-      part_number: t.part.part_number,
-      part_name: t.part.part_name,
-      spec: t.part.spec,
-      unit: t.part.unit,
-      quantity: t.default_quantity,
-      notes: '',
-      row_order: i,
-    }));
-    renderNewBOMTable();
-    toast(`공용 부품 ${parts.length}개 자동 로드됨`, 'info');
+    if (parts.length > 0) {
+      // 등록된 공용부품 → 바로 로드
+      newBOMItems = parts.map((t, i) => ({
+        type: 'common',
+        part_number: t.part.part_number,
+        part_name: t.part.part_name,
+        spec: t.part.spec,
+        unit: t.part.unit,
+        quantity: t.default_quantity,
+        notes: '', row_order: i,
+      }));
+      renderNewBOMTable();
+      toast(`공용 부품 ${parts.length}개 자동 로드됨`, 'info');
+    } else {
+      // 미등록 → 기존 BOM 분석 후 모달 표시
+      await showCommonPartsSuggest(group);
+    }
   } catch (e) {}
+}
+
+let _cpsGroup = '';
+let _cpsCandidates = [];
+
+async function showCommonPartsSuggest(group) {
+  _cpsGroup = group;
+  document.getElementById('cps-group-label').textContent = `제품군: ${group}`;
+  document.getElementById('cps-body').innerHTML =
+    '<tr><td colspan="5" class="text-center py-3"><div class="spinner-border spinner-border-sm me-2"></div>분석 중...</td></tr>';
+  document.getElementById('cps-count').textContent = '';
+  new bootstrap.Modal(document.getElementById('commonPartsSuggestModal')).show();
+
+  try {
+    const result = await api('GET', `/api/common-parts/suggest/${encodeURIComponent(group)}`);
+    _cpsCandidates = result.candidates || [];
+
+    if (!_cpsCandidates.length) {
+      document.getElementById('cps-body').innerHTML =
+        '<tr><td colspan="5" class="text-center text-muted py-3">분석할 BOM 데이터가 없거나 공통 부품이 없습니다.</td></tr>';
+      return;
+    }
+
+    document.getElementById('cps-count').textContent = `총 ${_cpsCandidates.length}개 후보`;
+    document.getElementById('cps-body').innerHTML = _cpsCandidates.map((c, i) => `
+      <tr>
+        <td><input type="checkbox" class="cps-chk" data-idx="${i}" checked></td>
+        <td class="font-monospace fw-semibold text-primary" style="font-size:0.82rem">${c.part_number}</td>
+        <td style="font-size:0.82rem">${c.part_name||'—'}</td>
+        <td><span class="badge bg-info text-dark">${c.percentage}%</span></td>
+        <td><input type="number" class="form-control form-control-sm" value="1" min="0.1" step="0.1"
+                   id="cps-qty-${i}" style="width:55px"></td>
+      </tr>`).join('');
+    document.getElementById('cps-chk-all').checked = true;
+  } catch (e) {
+    document.getElementById('cps-body').innerHTML =
+      `<tr><td colspan="5" class="text-danger p-3">분석 실패: ${e.message}</td></tr>`;
+  }
+}
+
+function cpsGetSelected() {
+  return [...document.querySelectorAll('.cps-chk:checked')].map(chk => {
+    const i = parseInt(chk.dataset.idx);
+    const c = _cpsCandidates[i];
+    const qty = parseFloat(document.getElementById(`cps-qty-${i}`)?.value) || 1;
+    return { ...c, default_quantity: qty };
+  });
+}
+
+async function cpsBulkRegisterAndLoad() {
+  const selected = cpsGetSelected();
+  if (!selected.length) { toast('선택된 항목이 없습니다', 'warning'); return; }
+  try {
+    const r = await api('POST', '/api/common-parts/bulk', { product_group: _cpsGroup, items: selected });
+    toast(`공용부품 ${r.registered}개 등록 완료`, 'success');
+    bootstrap.Modal.getInstance(document.getElementById('commonPartsSuggestModal')).hide();
+    // 등록된 공용부품을 BOM에 로드
+    await loadCommonPartsForNew();
+  } catch (e) { toast('등록 실패: ' + e.message, 'danger'); }
+}
+
+function cpsAddToBOM() {
+  const selected = cpsGetSelected();
+  if (!selected.length) { toast('선택된 항목이 없습니다', 'warning'); return; }
+  newBOMItems = selected.map((c, i) => ({
+    type: 'common',
+    part_number: c.part_number,
+    part_name: c.part_name || '',
+    spec: '', unit: 'EA',
+    quantity: c.default_quantity,
+    notes: '', row_order: i,
+  }));
+  renderNewBOMTable();
+  bootstrap.Modal.getInstance(document.getElementById('commonPartsSuggestModal')).hide();
+  toast(`${selected.length}개 항목을 BOM에 추가했습니다`, 'info');
 }
 
 function renderNewBOMTable() {

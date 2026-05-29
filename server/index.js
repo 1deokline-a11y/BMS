@@ -764,6 +764,26 @@ app.delete('/api/common-parts/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ detail: e.message }); }
 });
 
+// 공용부품 일괄 등록
+app.post('/api/common-parts/bulk', async (req, res) => {
+  try {
+    const { product_group, items } = req.body; // items: [{part_number, part_name, spec, unit, default_quantity}]
+    if (!product_group || !Array.isArray(items) || !items.length)
+      return res.status(400).json({ detail: '제품군과 항목 목록이 필요합니다' });
+
+    const results = [];
+    for (const item of items) {
+      const part = await getOrCreatePart(item.part_number, item.part_name || '', item.spec || '', item.unit || 'EA');
+      const { data, error } = await supabase.from('common_part_templates')
+        .upsert({ product_group, part_id: part.id, default_quantity: item.default_quantity || 1 },
+                 { onConflict: 'product_group,part_id' })
+        .select().single();
+      if (!error) results.push(data);
+    }
+    res.json({ registered: results.length });
+  } catch (e) { res.status(500).json({ detail: e.message }); }
+});
+
 app.get('/api/common-parts/suggest/:group', async (req, res) => {
   try {
     const group = req.params.group;
