@@ -112,6 +112,7 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 
 
 /* ===== 대시보드 드릴다운 ===== */
+.kpi-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important; transform: translateY(-1px); transition: all 0.15s; }
 .drill-col-header {
   padding: 0.4rem 0.75rem; font-size: 0.85rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.04em;
@@ -187,7 +188,7 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
   <!-- KPI 요약 카드 -->
   <div class="row g-3 mb-3" id="dash-kpi-row">
     <div class="col-6 col-md-3">
-      <div class="card h-100 border-0 shadow-sm">
+      <div class="card h-100 border-0 shadow-sm kpi-card" style="cursor:pointer" onclick="openKpiDetail('products')">
         <div class="card-body d-flex align-items-center gap-3 py-3">
           <div class="rounded-3 p-2 flex-shrink-0" style="background:#EFF6FF">
             <i class="bi bi-box-seam fs-4" style="color:#2563EB"></i>
@@ -200,7 +201,7 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
       </div>
     </div>
     <div class="col-6 col-md-3">
-      <div class="card h-100 border-0 shadow-sm">
+      <div class="card h-100 border-0 shadow-sm kpi-card" style="cursor:pointer" onclick="openKpiDetail('parts')">
         <div class="card-body d-flex align-items-center gap-3 py-3">
           <div class="rounded-3 p-2 flex-shrink-0" style="background:#F0FDF4">
             <i class="bi bi-puzzle fs-4" style="color:#059669"></i>
@@ -213,7 +214,7 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
       </div>
     </div>
     <div class="col-6 col-md-3">
-      <div class="card h-100 border-0 shadow-sm">
+      <div class="card h-100 border-0 shadow-sm kpi-card" style="cursor:pointer" onclick="openKpiDetail('changes_month')">
         <div class="card-body d-flex align-items-center gap-3 py-3">
           <div class="rounded-3 p-2 flex-shrink-0" style="background:#FFFBEB">
             <i class="bi bi-pencil-square fs-4" style="color:#D97706"></i>
@@ -226,7 +227,7 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
       </div>
     </div>
     <div class="col-6 col-md-3">
-      <div class="card h-100 border-0 shadow-sm">
+      <div class="card h-100 border-0 shadow-sm kpi-card" style="cursor:pointer" onclick="openKpiDetail('empty_bom')">
         <div class="card-body d-flex align-items-center gap-3 py-3">
           <div class="rounded-3 p-2 flex-shrink-0" style="background:#FFF1F2">
             <i class="bi bi-exclamation-triangle fs-4" style="color:#DC2626"></i>
@@ -235,6 +236,25 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
             <div class="fw-bold fs-4 lh-1 mb-1" id="kpi-empty">—</div>
             <div class="text-muted" style="font-size:0.78rem">BOM 미등록</div>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI 상세 팝업 모달 -->
+  <div class="modal fade" id="kpiDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+      <div class="modal-content">
+        <div class="modal-header py-2">
+          <h6 class="modal-title mb-0" id="kpi-modal-title">—</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-0" id="kpi-modal-body">
+          <div class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>로딩 중...</div>
+        </div>
+        <div class="modal-footer py-2">
+          <small class="text-muted me-auto" id="kpi-modal-count"></small>
+          <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">닫기</button>
         </div>
       </div>
     </div>
@@ -1346,6 +1366,74 @@ function renderDashKPI(stats) {
   }
 }
 
+async function openKpiDetail(type) {
+  const CFG = {
+    products:      { title: '등록 제품 목록',    color: '#2563EB' },
+    parts:         { title: '등록 부품 목록',    color: '#059669' },
+    changes_month: { title: '이번달 변경 이력',  color: '#D97706' },
+    empty_bom:     { title: 'BOM 미등록 제품',   color: '#DC2626' },
+  };
+  const cfg = CFG[type] || { title: '목록', color: '#333' };
+  document.getElementById('kpi-modal-title').textContent = cfg.title;
+  document.getElementById('kpi-modal-count').textContent = '';
+  document.getElementById('kpi-modal-body').innerHTML =
+    '<div class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>로딩 중...</div>';
+  new bootstrap.Modal(document.getElementById('kpiDetailModal')).show();
+
+  try {
+    const data = await api('GET', `/api/dashboard/detail?type=${type}`);
+    document.getElementById('kpi-modal-count').textContent = `총 ${data.length}건`;
+    let html = '';
+
+    if (type === 'products' || type === 'empty_bom') {
+      html = `<table class="table table-sm table-hover mb-0">
+        <thead class="table-light"><tr><th>품번</th><th>제품명</th><th style="width:60px">BOM</th></tr></thead><tbody>` +
+        data.map(p => `<tr>
+          <td class="font-monospace fw-semibold" style="color:${cfg.color};font-size:0.82rem">${p.part_number}</td>
+          <td style="font-size:0.82rem">${p.name||'—'}</td>
+          <td><button class="btn btn-outline-primary btn-sm py-0 px-1" style="font-size:0.7rem"
+                onclick="bootstrap.Modal.getInstance(document.getElementById('kpiDetailModal')).hide();setTimeout(()=>openDashProduct(${p.id}),300)">BOM</button></td>
+        </tr>`).join('') + '</tbody></table>';
+
+    } else if (type === 'parts') {
+      html = `<table class="table table-sm table-hover mb-0">
+        <thead class="table-light"><tr><th>품번</th><th>품명</th><th>규격</th><th style="width:50px">단위</th></tr></thead><tbody>` +
+        data.map(p => `<tr>
+          <td class="font-monospace fw-semibold" style="color:${cfg.color};font-size:0.82rem">${p.part_number}</td>
+          <td style="font-size:0.82rem">${p.part_name||'—'}</td>
+          <td class="text-muted" style="font-size:0.8rem">${p.spec||'—'}</td>
+          <td class="text-muted" style="font-size:0.8rem">${p.unit||'EA'}</td>
+        </tr>`).join('') + '</tbody></table>';
+
+    } else if (type === 'changes_month') {
+      if (!data.length) {
+        html = '<div class="text-center text-muted py-4">이번달 변경 이력이 없습니다.</div>';
+      } else {
+        html = `<table class="table table-sm table-hover mb-0">
+          <thead class="table-light"><tr><th style="width:140px">일시</th><th>품번</th><th>사유</th><th style="width:80px">작업자</th></tr></thead><tbody>` +
+          data.map(h => {
+            const dt = new Date(h.timestamp);
+            const ds = dt.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'})
+                     + ' ' + dt.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+            const pns = (h.affected_products||[]).slice(0,2).join(', ')
+                      + ((h.affected_products||[]).length > 2 ? ` 외 ${h.affected_products.length-2}건` : '');
+            return `<tr>
+              <td class="text-nowrap text-muted" style="font-size:0.78rem">${ds}</td>
+              <td style="font-size:0.8rem">${pns||'—'}</td>
+              <td class="text-muted" style="font-size:0.8rem">${(h.reason||'').substring(0,40)}</td>
+              <td style="font-size:0.8rem">${h.operator||'—'}</td>
+            </tr>`;
+          }).join('') + '</tbody></table>';
+      }
+    }
+
+    document.getElementById('kpi-modal-body').innerHTML = html;
+  } catch (e) {
+    document.getElementById('kpi-modal-body').innerHTML =
+      `<div class="text-danger p-3">오류: ${e.message}</div>`;
+  }
+}
+
 function renderDashHistory() {
   const items = window._dashHistory || [];
   const visible = items; // 드릴다운 탭 선택과 무관하게 전체 이력 항상 표시
@@ -1568,7 +1656,8 @@ function exportEditBOM() {
 }
 
 // ===================== Products =====================
-let allProducts = [];
+let allProducts = [];      // 검색 결과 (필터된 목록)
+let allProductsFull = []; // 드릴다운 전용 전체 목록 (검색과 무관)
 let prodDrillState = { expandedCat: null, col1Cat: null, col1: null, col2: null, col3: null };
 
 function prodSetCat() {}  // 탭 제거로 no-op
@@ -1627,7 +1716,7 @@ function prodRenderDrillCols() {
   const c4El = document.getElementById('prod-drill-col4');
   if (sc3 !== null && items3?.[sc3]) {
     const { prefixes } = items3[sc3];
-    const matched = allProducts.filter(p => dashMatchProduct(p, prefixes));
+    const matched = (allProductsFull.length ? allProductsFull : allProducts).filter(p => dashMatchProduct(p, prefixes));
     c4El.innerHTML = matched.length
       ? matched.map(p => `
           <div class="drill-item d-flex align-items-center justify-content-between">
@@ -1691,6 +1780,10 @@ async function loadProducts() {
     if (!search) document.getElementById('part-search-result').style.display = 'none';
 
     allProducts = data;
+
+    // 검색 없이 처음 로드할 때만 드릴다운 전체 목록 갱신
+    if (!search) allProductsFull = data;
+
     prodRenderPanel();
     document.getElementById('bom-inline-detail').style.display = 'none';
   } catch (e) { toast('제품 목록 로드 실패: ' + e.message, 'danger'); }

@@ -84,6 +84,41 @@ app.get('/api/dashboard/stats', async (_, res) => {
   }
 });
 
+// ── 대시보드 KPI 상세 목록 ────────────────────────────
+app.get('/api/dashboard/detail', async (req, res) => {
+  try {
+    await dbReady;
+    const { type } = req.query;
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+    if (type === 'products') {
+      const { data } = await supabase.from('products').select('id,part_number,name,product_group').order('part_number');
+      return res.json(data || []);
+    }
+    if (type === 'parts') {
+      const { data } = await supabase.from('parts').select('id,part_number,part_name,spec,unit').order('part_number');
+      return res.json(data || []);
+    }
+    if (type === 'changes_month') {
+      const { data } = await supabase.from('bom_history').select('id,timestamp,reason,operator,affected_products')
+        .gte('timestamp', monthStart).order('timestamp', { ascending: false });
+      return res.json(data || []);
+    }
+    if (type === 'empty_bom') {
+      const { data: allProds } = await supabase.from('products').select('id,part_number,name').order('part_number');
+      const allIds = (allProds || []).map(p => p.id);
+      if (!allIds.length) return res.json([]);
+      const { data: withBom } = await supabase.from('bom_items').select('product_id').in('product_id', allIds);
+      const withSet = new Set((withBom || []).map(b => b.product_id));
+      return res.json((allProds || []).filter(p => !withSet.has(p.id)));
+    }
+    res.status(400).json({ detail: 'type 파라미터가 필요합니다' });
+  } catch (e) {
+    res.status(500).json({ detail: e.message });
+  }
+});
+
 // ======================================================
 // PRODUCTS
 // ======================================================
