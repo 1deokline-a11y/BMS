@@ -50,6 +50,40 @@ app.get('/api/health', async (_, res) => {
   }
 });
 
+// ── 대시보드 KPI 통계 ─────────────────────────────────
+app.get('/api/dashboard/stats', async (_, res) => {
+  try {
+    await dbReady;
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+    const [
+      { count: products_count },
+      { count: parts_count },
+      { count: changes_this_month },
+      { count: empty_bom_count },
+    ] = await Promise.all([
+      supabase.from('products').select('*', { count: 'exact', head: true }).then(r => ({ count: r.count || 0 })),
+      supabase.from('parts').select('*', { count: 'exact', head: true }).then(r => ({ count: r.count || 0 })),
+      supabase.from('bom_history').select('*', { count: 'exact', head: true })
+        .gte('timestamp', monthStart).then(r => ({ count: r.count || 0 })),
+      supabase.from('products').select('id', { count: 'exact', head: false })
+        .then(async r => {
+          const allIds = (r.data || []).map(p => p.id);
+          if (!allIds.length) return { count: 0 };
+          const { data: withBom } = await supabase.from('bom_items')
+            .select('product_id').in('product_id', allIds);
+          const withBomSet = new Set((withBom || []).map(b => b.product_id));
+          return { count: allIds.filter(id => !withBomSet.has(id)).length };
+        }),
+    ]);
+
+    res.json({ products_count, parts_count, changes_this_month, empty_bom_count });
+  } catch (e) {
+    res.status(500).json({ detail: e.message });
+  }
+});
+
 // ======================================================
 // PRODUCTS
 // ======================================================

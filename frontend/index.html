@@ -181,6 +181,61 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
 <!-- ====== DASHBOARD ====== -->
 <div class="page" id="page-dashboard">
 
+  <!-- KPI 요약 카드 -->
+  <div class="row g-3 mb-3" id="dash-kpi-row">
+    <div class="col-6 col-md-3">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body d-flex align-items-center gap-3 py-3">
+          <div class="rounded-3 p-2 flex-shrink-0" style="background:#EFF6FF">
+            <i class="bi bi-box-seam fs-4" style="color:#2563EB"></i>
+          </div>
+          <div>
+            <div class="fw-bold fs-4 lh-1 mb-1" id="kpi-products">—</div>
+            <div class="text-muted" style="font-size:0.78rem">등록 제품</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body d-flex align-items-center gap-3 py-3">
+          <div class="rounded-3 p-2 flex-shrink-0" style="background:#F0FDF4">
+            <i class="bi bi-puzzle fs-4" style="color:#059669"></i>
+          </div>
+          <div>
+            <div class="fw-bold fs-4 lh-1 mb-1" id="kpi-parts">—</div>
+            <div class="text-muted" style="font-size:0.78rem">등록 부품</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body d-flex align-items-center gap-3 py-3">
+          <div class="rounded-3 p-2 flex-shrink-0" style="background:#FFFBEB">
+            <i class="bi bi-pencil-square fs-4" style="color:#D97706"></i>
+          </div>
+          <div>
+            <div class="fw-bold fs-4 lh-1 mb-1" id="kpi-changes">—</div>
+            <div class="text-muted" style="font-size:0.78rem">이번달 변경</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body d-flex align-items-center gap-3 py-3">
+          <div class="rounded-3 p-2 flex-shrink-0" style="background:#FFF1F2">
+            <i class="bi bi-exclamation-triangle fs-4" style="color:#DC2626"></i>
+          </div>
+          <div>
+            <div class="fw-bold fs-4 lh-1 mb-1" id="kpi-empty">—</div>
+            <div class="text-muted" style="font-size:0.78rem">BOM 미등록</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- 4단 드릴다운 패널 -->
   <div class="card mb-3" id="dash-drill-panel">
@@ -1209,16 +1264,34 @@ function openDashProduct(id) {
 
 async function loadDashboard() {
   try {
-    const [products, histRes] = await Promise.all([
+    const [products, histRes, stats] = await Promise.all([
       api('GET', '/api/products'),
       api('GET', '/api/history?limit=50'),
+      api('GET', '/api/dashboard/stats').catch(() => null),
     ]);
     dashAllProducts = products;
     window._dashHistory = histRes.items || [];
     dashRenderDrillCols();
     renderDashHistory();
+    renderDashKPI(stats);
   } catch (e) {
     console.error('[dashboard]', e);
+  }
+}
+
+function renderDashKPI(stats) {
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val != null ? val.toLocaleString() : '—';
+  };
+  if (!stats) return;
+  set('kpi-products', stats.products_count);
+  set('kpi-parts',    stats.parts_count);
+  set('kpi-changes',  stats.changes_this_month);
+  const emptyEl = document.getElementById('kpi-empty');
+  if (emptyEl) {
+    emptyEl.textContent = stats.empty_bom_count != null ? stats.empty_bom_count.toLocaleString() : '—';
+    emptyEl.style.color = stats.empty_bom_count > 0 ? '#DC2626' : '#059669';
   }
 }
 
