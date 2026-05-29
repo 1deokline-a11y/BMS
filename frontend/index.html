@@ -1486,32 +1486,33 @@ function editGetFiltered() {
 
 function editRenderPanel() {
   const { col1Cat, col1, col2, col3 } = editDrillState;
-  const allList   = document.getElementById('edit-all-list');
+  const allList    = document.getElementById('edit-all-list');
   const drillPanel = document.getElementById('edit-drill-panel');
-  const filtered  = editGetFiltered();
+  const filtered   = editGetFiltered();
   const ph = t => `<div class="text-muted px-2 py-1" style="font-size:0.75rem">${t}</div>`;
   const q = (document.getElementById('edit-drill-search')?.value || '').trim();
 
-  // 검색어 있을 때만 전체목록 표시, 없으면 드릴다운
-  if (q) {
-    drillPanel.style.display = 'none';
+  // 검색 결과: 검색어 있을 때 목록 표시 (드릴다운은 항상 유지)
+  if (q && filtered.length) {
     allList.style.display = '';
-    allList.innerHTML = filtered.length
-      ? filtered.map(p => `
-          <div class="drill-item d-flex align-items-center justify-content-between mb-1">
-            <div style="min-width:0;flex:1;overflow:hidden;cursor:pointer" onclick="openBOMForEdit(${p.id})">
-              <span class="fw-semibold text-primary" style="font-size:0.78rem">${p.part_number}</span>
-              <span class="text-muted d-block" style="font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
-            </div>
-            <button class="btn btn-outline-primary flex-shrink-0 ms-2"
-                    style="font-size:0.7rem;padding:0.1rem 0.5rem"
-                    onclick="openBOMForEdit(${p.id});event.stopPropagation()">수정</button>
-          </div>`).join('')
-      : ph('제품 없음');
-    return;
+    allList.innerHTML = filtered.map(p => `
+        <div class="drill-item d-flex align-items-center justify-content-between mb-1">
+          <div style="min-width:0;flex:1;overflow:hidden;cursor:pointer" onclick="openBOMForEdit(${p.id})">
+            <span class="fw-semibold text-primary" style="font-size:0.78rem">${p.part_number}</span>
+            <span class="text-muted d-block" style="font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
+          </div>
+          <button class="btn btn-outline-primary flex-shrink-0 ms-2"
+                  style="font-size:0.7rem;padding:0.1rem 0.5rem"
+                  onclick="openBOMForEdit(${p.id});event.stopPropagation()">수정</button>
+        </div>`).join('');
+  } else if (q && !filtered.length) {
+    allList.style.display = '';
+    allList.innerHTML = ph('검색 결과 없음');
+  } else {
+    allList.style.display = 'none';
   }
 
-  allList.style.display = 'none';
+  // 드릴다운은 항상 표시
   drillPanel.style.display = '';
 
   renderGroupedCol1('edit-drill-col1', editDrillState.expandedCat, col1Cat, col1, 'editExpandCat', 'editSelectCol1');
@@ -1535,7 +1536,8 @@ function editRenderPanel() {
   const c4El = document.getElementById('edit-drill-col4');
   if (col3 !== null && items3?.[col3]) {
     const { prefixes } = items3[col3];
-    const matched = filtered.filter(p => dashMatchProduct(p, prefixes));
+    // 드릴다운 col4는 검색 필터와 무관하게 전체 목록에서 매칭
+    const matched = editAllProducts.filter(p => dashMatchProduct(p, prefixes));
     c4El.innerHTML = matched.length
       ? matched.map(p => `
           <div class="drill-item d-flex align-items-center justify-content-between">
