@@ -119,9 +119,9 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
   border-bottom: 1px solid #e2e8f0; white-space: nowrap;
 }
 .drill-group-header {
-  padding: 0.35rem 0.75rem 0.2rem;
-  font-size: 0.85rem; font-weight: 700; letter-spacing: 0.03em;
-  color: #64748b; background: #f1f5f9;
+  padding: 0.3rem 0.75rem 0.15rem;
+  font-size: 0.75rem; font-weight: 500; letter-spacing: 0.02em;
+  color: #94a3b8; background: #ffffff;
   border-top: 1px solid #e2e8f0; text-transform: uppercase;
 }
 .drill-group-header:first-child { border-top: none; }
@@ -301,7 +301,8 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
     <div class="card-header p-2 d-flex align-items-center gap-1" id="prod-cat-tabs">
       <input type="text" class="form-control form-control-sm" id="filter-search"
              placeholder="품번 / 품명 검색" style="width:200px"
-             onkeydown="if(event.key==='Enter')loadProducts()">
+             onkeydown="if(event.key==='Enter')loadProducts()"
+             oninput="if(!this.value.trim())prodRenderPanel()">
       <button class="btn btn-primary btn-sm" onclick="loadProducts()">
         <i class="bi bi-search"></i>
       </button>
@@ -1546,9 +1547,33 @@ let prodDrillState = { col1Cat: null, col1: null, col2: null, col3: null };
 function prodSetCat() {}  // 탭 제거로 no-op
 
 function prodRenderPanel() {
-  document.getElementById('prod-all-list').style.display = 'none';
-  document.getElementById('prod-drill-panel').style.display = '';
-  prodRenderDrillCols();
+  const search = (document.getElementById('filter-search')?.value || '').trim();
+  const allList   = document.getElementById('prod-all-list');
+  const drillPanel = document.getElementById('prod-drill-panel');
+  const ph = '<div class="text-muted small p-2">제품 없음</div>';
+
+  if (search) {
+    // 검색어 있을 때 → 완제품 목록 표시
+    drillPanel.style.display = 'none';
+    allList.style.display = '';
+    allList.innerHTML = allProducts.length
+      ? allProducts.map(p => `
+          <div class="drill-item d-flex align-items-center justify-content-between mb-1">
+            <div style="min-width:0;flex:1;overflow:hidden;cursor:pointer" onclick="openBOMFromDrill(${p.id})">
+              <span class="fw-semibold text-primary" style="font-size:0.82rem">${p.part_number}</span>
+              <span class="text-muted d-block" style="font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
+            </div>
+            <button class="btn btn-outline-primary flex-shrink-0 ms-2"
+                    style="font-size:0.7rem;padding:0.1rem 0.5rem"
+                    onclick="openBOMFromDrill(${p.id});event.stopPropagation()">조회</button>
+          </div>`).join('')
+      : ph;
+  } else {
+    // 검색어 없을 때 → 드릴다운 표시
+    allList.style.display = 'none';
+    drillPanel.style.display = '';
+    prodRenderDrillCols();
+  }
 }
 
 function prodRenderDrillCols() {
