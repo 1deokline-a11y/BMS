@@ -275,13 +275,30 @@ async function importBOMData(parsed, overwrite) {
            action: existing ? 'updated' : 'created' };
 }
 
+app.post('/api/import/excel/preview', upload.array('files'), async (req, res) => {
+  try {
+    const results = [];
+    for (const file of req.files) {
+      try {
+        const parsed = parseExcelBOM(file.path, file.originalname);
+        results.push({ filename: file.originalname, status: 'success', ...parsed });
+      } catch (e) {
+        results.push({ filename: file.originalname, status: 'error', reason: e.message });
+      } finally {
+        fs.unlink(file.path, () => {});
+      }
+    }
+    res.json({ results });
+  } catch (e) { res.status(500).json({ detail: e.message }); }
+});
+
 app.post('/api/import/excel', upload.array('files'), async (req, res) => {
   try {
     const overwrite = req.query.overwrite === 'true';
     const results = [];
     for (const file of req.files) {
       try {
-        const r = await importBOMData(parseExcelBOM(file.path), overwrite);
+        const r = await importBOMData(parseExcelBOM(file.path, file.originalname), overwrite);
         results.push({ filename: file.originalname, ...r });
       } catch (e) {
         results.push({ filename: file.originalname, status: 'error', reason: e.message });

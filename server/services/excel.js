@@ -53,9 +53,9 @@ function parseMetaFromFilename(filename) {
   return { part_number: partNumber, product_group: productGroup, variant_code: variantCode, name, customer, country_spec: countrySpec, spec };
 }
 
-function parseExcelBOM(filePath) {
+function parseExcelBOM(filePath, originalName) {
   const wb = XLSX.readFile(filePath, { cellDates: true, sheetStubs: true });
-  const meta = parseMetaFromFilename(filePath);
+  const meta = parseMetaFromFilename(originalName || filePath);
 
   // Pick best sheet: prefer one with BOM-like content
   let wsName = wb.SheetNames[0];

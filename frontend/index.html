@@ -872,7 +872,7 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
       <button class="btn btn-outline-success" onclick="openPNModal()">
         <i class="bi bi-123 me-1"></i>품번 채번
       </button>
-      <input type="file" id="new-bom-import-input" accept=".xlsx" multiple style="display:none" onchange="importFromNewBOM(this)">
+      <input type="file" id="new-bom-import-input" accept=".xlsx" style="display:none" onchange="importFromNewBOM(this)">
       <button class="btn btn-outline-primary" onclick="document.getElementById('new-bom-import-input').click()">
         <i class="bi bi-upload me-1"></i>엑셀 임포트
       </button>
@@ -3156,14 +3156,34 @@ async function importFromNewBOM(input) {
   const files = input.files;
   if (!files.length) return;
   const formData = new FormData();
-  for (const file of files) formData.append('files', file);
+  formData.append('files', files[0]);
   try {
     toast('임포트 중...', 'info');
-    const result = await apiForm('/api/import/excel?overwrite=true', formData);
+    const result = await apiForm('/api/import/excel/preview', formData);
     input.value = '';
-    const ok = (result.results || []).filter(r => r.status === 'success').length;
-    toast(`✅ ${ok}개 파일 임포트 완료`, 'success');
-    await loadProducts();
+    const r = (result.results || [])[0];
+    if (!r || r.status !== 'success') { toast('임포트 실패: ' + (r?.reason || '파일을 읽을 수 없습니다'), 'danger'); return; }
+    if (!r.bom_items || !r.bom_items.length) { toast('엑셀에서 BOM 항목을 찾지 못했습니다', 'warning'); return; }
+
+    const meta = r.meta || {};
+    document.getElementById('new-part-number').value = meta.part_number || '';
+    document.getElementById('new-name').value = meta.name || '';
+    document.getElementById('new-customer').value = meta.customer || '';
+    document.getElementById('new-country').value = meta.country_spec || '';
+    document.getElementById('new-spec').value = meta.spec || '';
+    const groupSel = document.getElementById('new-product-group');
+    if (meta.product_group && [...groupSel.options].some(o => o.value === meta.product_group)) {
+      groupSel.value = meta.product_group;
+    }
+
+    newBOMItems = r.bom_items.map((it, i) => ({
+      type: 'variable',
+      part_number: it.part_number, part_name: it.part_name,
+      spec: it.spec, unit: it.unit, quantity: it.quantity,
+      notes: it.notes || '', row_order: i,
+    }));
+    renderNewBOMTable();
+    toast(`✅ BOM 항목 ${newBOMItems.length}개 임포트 완료 (내용을 확인 후 저장하세요)`, 'success');
   } catch (e) { toast('임포트 실패: ' + e.message, 'danger'); }
 }
 
