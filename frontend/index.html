@@ -884,9 +884,9 @@ body.mobile-mode #btn-mode-mobile { background: #63b3ed; color: #1e2a3a; border-
       <div class="row g-3">
         <div class="col-md-3">
           <label class="form-label fw-bold">제품군</label>
-          <select class="form-select form-select-sm" id="new-product-group" onchange="loadCommonPartsForNew()">
-            <option value="">-- 선택 --</option>
-          </select>
+          <input type="text" class="form-control form-control-sm" id="new-product-group" list="new-product-group-list"
+                 placeholder="선택 또는 직접 입력" onchange="loadCommonPartsForNew()">
+          <datalist id="new-product-group-list"></datalist>
         </div>
         <div class="col-md-2">
           <label class="form-label fw-bold">품번</label>
@@ -2670,8 +2670,7 @@ let newBOMItems = [];
 async function loadGroupsForNew() {
   try {
     const groups = await api('GET', '/api/products/groups');
-    const sel = document.getElementById('new-product-group');
-    sel.innerHTML = '<option value="">-- 선택 --</option>' + groups.map(g => `<option value="${g}">${g}</option>`).join('');
+    document.getElementById('new-product-group-list').innerHTML = groups.map(g => `<option value="${g}">`).join('');
   } catch (e) {}
 }
 
@@ -3171,10 +3170,7 @@ async function importFromNewBOM(input) {
     document.getElementById('new-customer').value = meta.customer || '';
     document.getElementById('new-country').value = meta.country_spec || '';
     document.getElementById('new-spec').value = meta.spec || '';
-    const groupSel = document.getElementById('new-product-group');
-    if (meta.product_group && [...groupSel.options].some(o => o.value === meta.product_group)) {
-      groupSel.value = meta.product_group;
-    }
+    if (meta.product_group) document.getElementById('new-product-group').value = meta.product_group;
 
     newBOMItems = r.bom_items.map((it, i) => ({
       type: 'variable',
