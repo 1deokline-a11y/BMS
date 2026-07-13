@@ -51,8 +51,9 @@ async function seedFromExcel(getOrCreatePart, parseExcelBOM, supabase) {
 
     // 기존 BOM 항목 전체 삭제 후 재삽입 (Excel이 항상 원본)
     const productIds = products.map(p => p.id);
-    for (const pid of productIds) {
-      await supabase.from('bom_items').delete().eq('product_id', pid);
+    if (productIds.length) {
+      const { error: delErr } = await supabase.from('bom_items').delete().in('product_id', productIds);
+      if (delErr) throw delErr;
     }
     const toInsert = allParsed;
 
@@ -106,10 +107,46 @@ async function seedFromExcel(getOrCreatePart, parseExcelBOM, supabase) {
       if (error) throw error;
     }
 
-    console.log(`[seed] 완료: 제품 ${products.length}개, 부품 ${parts.length}개, BOM항목 ${bomRows.length}개`);
+    // 안전장치: 삭제/재삽입 과정에서 남을 수 있는 중복 행 정리 (product_id + row_order 기준 1개만 유지)
+    const dedupedCount = await dedupeBomItems(supabase, productIds);
+
+    console.log(`[seed] 완료: 제품 ${products.length}개, 부품 ${parts.length}개, BOM항목 ${bomRows.length - dedupedCount}개`);
   } catch (e) {
     console.error('[seed] 오류:', e.message);
   }
+}
+
+async function dedupeBomItems(supabase, productIds) {
+  if (!productIds.length) return 0;
+  const all = [];
+  const PAGE = 1000;
+  for (let offset = 0; ; offset += PAGE) {
+    const { data, error } = await supabase.from('bom_items')
+      .select('id,product_id,row_order')
+      .in('product_id', productIds)
+      .order('id')
+      .range(offset, offset + PAGE - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    all.push(...data);
+    if (data.length < PAGE) break;
+  }
+
+  const seen = new Set();
+  const toDelete = [];
+  for (const row of all) {
+    const key = `${row.product_id}|${row.row_order}`;
+    if (seen.has(key)) toDelete.push(row.id);
+    else seen.add(key);
+  }
+
+  const CHUNK = 200;
+  for (let i = 0; i < toDelete.length; i += CHUNK) {
+    const { error } = await supabase.from('bom_items').delete().in('id', toDelete.slice(i, i + CHUNK));
+    if (error) throw error;
+  }
+  if (toDelete.length) console.log(`[seed] 중복 BOM 항목 ${toDelete.length}개 정리됨`);
+  return toDelete.length;
 }
 
 module.exports = { seedFromExcel };

@@ -29,8 +29,12 @@ app.use('/', (req, res, next) => {
 });
 app.use('/', express.static(path.join(BASE_DIR, 'frontend')));
 
+// Vercel은 요청마다 여러 서버리스 인스턴스가 동시에 콜드스타트될 수 있어,
+// 매 부팅마다 전체 BOM을 삭제 후 재삽입하는 시딩을 자동 실행하면 인스턴스 간 경합으로
+// 중복 데이터가 쌓인다. 로컬 개발 환경에서만 자동 시딩하고, 운영(Vercel)에서는
+// 필요할 때 로컬에서 직접 실행해 반영한다.
 const dbReady = initDB()
-  .then(() => seedFromExcel(getOrCreatePart, parseExcelBOM, supabase))
+  .then(() => process.env.VERCEL ? undefined : seedFromExcel(getOrCreatePart, parseExcelBOM, supabase))
   .catch(e => console.error('[startup]', e.message));
 
 app.use('/api', async (req, res, next) => {
