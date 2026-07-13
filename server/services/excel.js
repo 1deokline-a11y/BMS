@@ -79,7 +79,7 @@ function parseExcelBOM(filePath, originalName) {
 
   const bomItems = [];
   const SKIP = new Set(['', '-', 'N/A', 'n/a', null, undefined]);
-  const TOTAL_RE   = /^(합\s*계|소\s*계|날\s*짜|작성일|일자|total|subtotal|date)$/i;
+  const TOTAL_RE   = /^(총\s*합|합\s*계|소\s*계|날\s*짜|작성일|일자|total|subtotal|date)$/i;
   const DATE_RE    = /^\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}/;
 
   for (let i = headerIdx + 1; i < rows.length; i++) {
@@ -147,7 +147,9 @@ async function exportComparisonToExcel(p1, p2, diffs, colorOptions = {}) {
   ];
 
   // 제목 행
-  const titleRow = ws.addRow([`BOM 비교: ${p1} vs ${p2}`]);
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const titleRow = ws.addRow([`${p1}, ${p2} BOM 비교 자료_${dateStr}`]);
   ws.mergeCells('A1:J1');
   titleRow.getCell(1).font = { bold: true, size: 13 };
 

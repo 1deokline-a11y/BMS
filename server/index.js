@@ -343,7 +343,7 @@ app.get('/api/products/:id/export', async (req, res) => {
 // ======================================================
 // COMPARE
 // ======================================================
-const META_ROW_RE = /^(합\s*계|소\s*계|날\s*짜|작성일|일자|total|subtotal|date)$/i;
+const META_ROW_RE = /^(총\s*합|합\s*계|소\s*계|날\s*짜|작성일|일자|total|subtotal|date)$/i;
 const DATE_LIKE_RE = /^\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}/;
 const isMetaRow = it => {
   const pn = it.part.part_number || '';
@@ -404,7 +404,9 @@ app.get('/api/compare/export', async (req, res) => {
       colorQty:        req.query.colorQty        === '1',
     };
     const buf = await exportComparisonToExcel(result.product1.part_number, result.product2.part_number, result.diffs, colorOptions);
-    const filename = encodeURIComponent(`비교_${result.product1.part_number}_vs_${result.product2.part_number}.xlsx`);
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    const filename = encodeURIComponent(`${result.product1.part_number}, ${result.product2.part_number} BOM 비교 자료_${dateStr}.xlsx`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${filename}`);
     res.send(buf);
