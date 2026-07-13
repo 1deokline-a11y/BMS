@@ -1588,9 +1588,17 @@ function editRenderPanel() {
             <span class="fw-semibold text-primary" style="font-size:0.78rem">${p.part_number}</span>
             <span class="text-muted d-block" style="font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
           </div>
-          <button class="btn btn-outline-primary flex-shrink-0 ms-2"
-                  style="font-size:0.7rem;padding:0.1rem 0.5rem"
-                  onclick="openBOMForEdit(${p.id});event.stopPropagation()">수정</button>
+          <div class="btn-group flex-shrink-0 ms-2" onclick="event.stopPropagation()">
+            <button class="btn btn-outline-primary"
+                    style="font-size:0.7rem;padding:0.1rem 0.5rem"
+                    onclick="openBOMForEdit(${p.id})">수정</button>
+            <button class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split"
+                    style="padding:0.1rem 0.4rem" data-bs-toggle="dropdown" aria-expanded="false"></button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="#" onclick="openBOMForEdit(${p.id});return false;">수정</a></li>
+              <li><a class="dropdown-item text-danger" href="#" onclick="deleteEditProduct(${p.id});return false;">삭제</a></li>
+            </ul>
+          </div>
         </div>`).join('');
   } else if (q && !filtered.length) {
     allList.style.display = '';
@@ -1632,12 +1640,39 @@ function editRenderPanel() {
               <span class="fw-semibold text-primary" style="font-size:0.78rem">${p.part_number}</span>
               <span class="text-muted d-block" style="font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||''}</span>
             </div>
-            <button class="btn btn-outline-primary flex-shrink-0 ms-2"
-                    style="font-size:0.7rem;padding:0.1rem 0.5rem"
-                    onclick="openBOMForEdit(${p.id});event.stopPropagation()">수정</button>
+            <div class="btn-group flex-shrink-0 ms-2" onclick="event.stopPropagation()">
+              <button class="btn btn-outline-primary"
+                      style="font-size:0.7rem;padding:0.1rem 0.5rem"
+                      onclick="openBOMForEdit(${p.id})">수정</button>
+              <button class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split"
+                      style="padding:0.1rem 0.4rem" data-bs-toggle="dropdown" aria-expanded="false"></button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="#" onclick="openBOMForEdit(${p.id});return false;">수정</a></li>
+                <li><a class="dropdown-item text-danger" href="#" onclick="deleteEditProduct(${p.id});return false;">삭제</a></li>
+              </ul>
+            </div>
           </div>`).join('')
       : ph('해당 품번 없음');
   } else { c4El.innerHTML = ph('제품코드 선택'); }
+}
+
+async function deleteEditProduct(id) {
+  const p = editAllProducts.find(x => x.id === id);
+  const pn = p?.part_number || id;
+  if (!confirm(`"${pn}" 제품(BOM 전체)을 삭제하시겠습니까?\n삭제 후 되돌릴 수 없습니다.`)) return;
+  try {
+    const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
+    editAllProducts = editAllProducts.filter(x => x.id !== id);
+    if (editProductId === id) {
+      editProductId = null;
+      document.getElementById('edit-inline-detail').style.display = 'none';
+    }
+    editRenderPanel();
+    toast(`"${pn}" 삭제 완료`, 'success');
+  } catch (e) {
+    toast('삭제 실패: ' + e.message, 'danger');
+  }
 }
 
 function editExpandCat(cat) {
