@@ -50,6 +50,24 @@ app.get('/api/health', async (_, res) => {
   }
 });
 
+// bom_items.select(...).in('product_id', ids) 는 Supabase 기본 응답 제한(1000행)에 걸릴 수 있으므로
+// range()로 페이지네이션하며 전체를 순회해 product_id 집합을 구한다.
+async function getProductIdsWithBom(productIds) {
+  const withSet = new Set();
+  const PAGE = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase.from('bom_items')
+      .select('product_id').in('product_id', productIds)
+      .range(offset, offset + PAGE - 1);
+    if (error) throw error;
+    (data || []).forEach(row => withSet.add(row.product_id));
+    if (!data || data.length < PAGE) break;
+    offset += PAGE;
+  }
+  return withSet;
+}
+
 // ── 대시보드 KPI 통계 ─────────────────────────────────
 app.get('/api/dashboard/stats', async (_, res) => {
   try {
@@ -71,9 +89,7 @@ app.get('/api/dashboard/stats', async (_, res) => {
         .then(async r => {
           const allIds = (r.data || []).map(p => p.id);
           if (!allIds.length) return { count: 0 };
-          const { data: withBom } = await supabase.from('bom_items')
-            .select('product_id').in('product_id', allIds);
-          const withBomSet = new Set((withBom || []).map(b => b.product_id));
+          const withBomSet = await getProductIdsWithBom(allIds);
           return { count: allIds.filter(id => !withBomSet.has(id)).length };
         }),
     ]);
@@ -109,8 +125,7 @@ app.get('/api/dashboard/detail', async (req, res) => {
       const { data: allProds } = await supabase.from('products').select('id,part_number,name').order('part_number');
       const allIds = (allProds || []).map(p => p.id);
       if (!allIds.length) return res.json([]);
-      const { data: withBom } = await supabase.from('bom_items').select('product_id').in('product_id', allIds);
-      const withSet = new Set((withBom || []).map(b => b.product_id));
+      const withSet = await getProductIdsWithBom(allIds);
       return res.json((allProds || []).filter(p => !withSet.has(p.id)));
     }
     res.status(400).json({ detail: 'type 파라미터가 필요합니다' });
