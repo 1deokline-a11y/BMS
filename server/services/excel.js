@@ -138,50 +138,69 @@ async function exportComparisonToExcel(p1, p2, diffs, colorOptions = {}) {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('BOM 비교');
 
+  // 컬럼: BOM1(1-4) | 여백(5) | BOM2(6-9) | 구분(10)
   ws.columns = [
     { width: 22 }, { width: 28 }, { width: 22 }, { width: 10 },
+    { width: 3 },
     { width: 22 }, { width: 28 }, { width: 22 }, { width: 10 },
     { width: 12 },
   ];
 
   // 제목 행
   const titleRow = ws.addRow([`BOM 비교: ${p1} vs ${p2}`]);
-  ws.mergeCells('A1:I1');
+  ws.mergeCells('A1:J1');
   titleRow.getCell(1).font = { bold: true, size: 13 };
 
-  // 헤더 행
+  // 헤더 행 (여백 컬럼은 빈 값 유지)
   const headerRow = ws.addRow([
     `[${p1}] 부품번호`, `[${p1}] 부품명`, `[${p1}] 규격`, `[${p1}] 수량`,
+    '',
     `[${p2}] 부품번호`, `[${p2}] 부품명`, `[${p2}] 규격`, `[${p2}] 수량`,
     '구분',
   ]);
-  headerRow.eachCell(cell => {
+  [1, 2, 3, 4, 6, 7, 8, 9, 10].forEach(i => {
+    const cell = headerRow.getCell(i);
     cell.font = { bold: true };
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
   });
+
+  const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+  let total1 = 0, total2 = 0;
 
   // 데이터 행
   for (const d of diffs) {
     const i1 = d.item1 || {};
     const i2 = d.item2 || {};
+    total1 += parseFloat(i1.quantity) || 0;
+    total2 += parseFloat(i2.quantity) || 0;
     const row = ws.addRow([
       i1.part_number || '', i1.part_name || '', i1.spec || '', i1.quantity || '',
+      '',
       i2.part_number || '', i2.part_name || '', i2.spec || '', i2.quantity || '',
       statusLabel[d.status] || d.status,
     ]);
 
-    const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
-
     if ((d.status === 'same' || d.status === 'spec_diff') && colorCommon) {
-      row.eachCell({ includeEmpty: true }, cell => { cell.fill = fill('FFD4F1D4'); });
+      [1, 2, 3, 4, 6, 7, 8, 9, 10].forEach(i => { row.getCell(i).fill = fill('FFD4F1D4'); });
     } else if (d.status === 'removed' && colorIndividual) {
       for (let i = 1; i <= 4; i++) row.getCell(i).fill = fill('FFFFD4D4');
     } else if (d.status === 'added' && colorIndividual) {
-      for (let i = 5; i <= 8; i++) row.getCell(i).fill = fill('FFFFD4D4');
+      for (let i = 6; i <= 9; i++) row.getCell(i).fill = fill('FFFFD4D4');
     } else if (d.status === 'qty_diff' && colorQty) {
-      row.eachCell({ includeEmpty: true }, cell => { cell.fill = fill('FFFFF3CD'); });
+      [1, 2, 3, 4, 6, 7, 8, 9, 10].forEach(i => { row.getCell(i).fill = fill('FFFFF3CD'); });
     }
   }
+
+  // 합계 행: 부품이 아니므로 색칠하지 않고 전체 데이터 행의 맨 아래에 위치
+  const roundQty = n => (n % 1 === 0 ? n : Math.round(n * 100) / 100);
+  const totalRowIdx = ws.rowCount + 1;
+  ws.addRow(['합계', '', '', roundQty(total1), '', '합계', '', '', roundQty(total2), '']);
+  ws.mergeCells(`A${totalRowIdx}:C${totalRowIdx}`);
+  ws.mergeCells(`F${totalRowIdx}:H${totalRowIdx}`);
+  const totalRow = ws.getRow(totalRowIdx);
+  totalRow.eachCell({ includeEmpty: true }, cell => { cell.font = { bold: true }; });
+  totalRow.getCell(1).alignment = { horizontal: 'center' };
+  totalRow.getCell(6).alignment = { horizontal: 'center' };
 
   return wb.xlsx.writeBuffer();
 }
